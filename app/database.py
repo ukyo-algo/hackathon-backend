@@ -11,7 +11,7 @@ DB_NAME = os.environ["DB_NAME"]
 INSTANCE_CONNECTION_NAME = os.environ["INSTANCE_CONNECTION_NAME"]
 
 
-def getconnection() -> sqlalchemy.engine.base.Connections:
+def getconnection() -> sqlalchemy.engine.base.Connection:
     """
     Cloud SQL への接続を確立する関数.
     """
