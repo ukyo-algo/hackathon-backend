@@ -378,7 +378,7 @@ JWTトークンは，ユーザー名役割idなどから生成される鍵の文
 実装の手順
 
 
-1.fastapiのミニマムな実装
+# 1.fastapiのミニマムな実装
 requirements.txtを用意する
 ```
 fastapi
@@ -386,27 +386,27 @@ uvicorn[standard]
 ```
 Dockerfileを用意する
 ```
-# 1. ベースイメージを推奨される「python:3.11-slim」に変更
+## 1. ベースイメージを推奨される「python:3.11-slim」に変更
 FROM python:3.11-slim
 
-# 2. ログのバッファリングを無効 (Cloud Loggingのために推奨)
+## 2. ログのバッファリングを無効 (Cloud Loggingのために推奨)
 ENV PYTHONUNBUFFERED=1
 
-# 作業ディレクトリを設定
+### 作業ディレクトリを設定
 WORKDIR /src
 
-# requirements.txt を先にコピー (レイヤーキャッシュのため)
+### requirements.txt を先にコピー (レイヤーキャッシュのため)
 COPY requirements.txt ./
 
-# 3. 「--no-cache-dir」を追加 (イメージサイズ削減)
+## 3. 「--no-cache-dir」を追加 (イメージサイズ削減)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. アプリケーションコードをすべてコピー
-# (このDockerfileはプロジェクトルートに置くことを想定)
+## 4. アプリケーションコードをすべてコピー
+## (このDockerfileはプロジェクトルートに置くことを想定)
 COPY . .
 
-# 5. Cloud Runの「$PORT」環境変数を使ってサーバーを起動
-# (ENTRYPOINTではなくCMDを使用)
+## 5. Cloud Runの「$PORT」環境変数を使ってサーバーを起動
+## (ENTRYPOINTではなくCMDを使用)
 CMD uvicorn api.main:app --host 0.0.0.0 --port $PORT
 ```
 先にrequirements.txtをコピーしてライブラリをダウンロードする．その後，全てをコピーすることで後述するメリットがある．dockerは変更点のある場所以降のコードを再実行する仕組みがあるため，main.pyを書き換えた時main.pyに関係ある部分移行を再実行する．今回の場合では，COPY . .　移行を実行することになる．逆にいうと，RUN pip install --no-cache-dir -r requirements.txtという劇重処理を省略することができる！やったね．
@@ -428,3 +428,25 @@ def ping():
 
 docker build -t my-fastapi-app . を実行したのちにdocker run -p 8080:8080 -e PORT=8080 my-fastapi-appを実行し，http://0.0.0.0:8080/api/v1/pingにアクセスすることで成功です．
 
+# 2.SQLを作る．
+今回はMYSQLを作成した．
+
+https://www.notion.so/utokyotechclub/19bb8178296f809bb02ed0f41ca0eb57?v=77399ffdd31942e6b5ea8ccb52e13a6b&p=19bb8178296f80639ecdc8c92857e507&pm=s　に従いながら作成．
+
+GCPを作った後，コマンドプロンプトで以下のコードを実行
+
+ログイン
+```
+gcloud config set project prismatic-voice-474207-c5
+
+gcloud sql connect uttc --user=root --quiet (その後パスワードを入力)
+```
+データベースの作成
+```
+create database (SQL名);
+create user 'uttc' identified by 'password';
+grant ALL on hackathon.* TO 'uttc'; (アクセス権限を付与)
+```
+
+IPアドレスの登録
+どこかのタイミングで自分のIPアドレスをhttps://console.cloud.google.com/sql/instances/uttc/connections/networking?cloudshell=true&hl=ja&project=prismatic-voice-474207-c5　に登録する
