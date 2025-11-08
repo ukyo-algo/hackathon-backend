@@ -1,2 +1,5 @@
 fastapi
 uvicorn[standard]
+sqlalchemy
+pymysql
+cloud-sql-python-connector[pymysql]
