@@ -450,3 +450,6 @@ grant ALL on hackathon.* TO 'uttc'; (アクセス権限を付与)
 
 IPアドレスの登録
 どこかのタイミングで自分のIPアドレスをhttps://console.cloud.google.com/sql/instances/uttc/connections/networking?cloudshell=true&hl=ja&project=prismatic-voice-474207-c5　に登録する
+
+# 3.SQLとの接続
+database.pyにSQLとのコネクションポイントを作成した．
