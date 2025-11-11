@@ -30,8 +30,9 @@ engine = sqlalchemy.create_engine(
     creator=getconnection,
 )
 
+# DBを生成する関数
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+Base = declarative_base()  # モデルの基底クラス
 
 
 def get_db():
