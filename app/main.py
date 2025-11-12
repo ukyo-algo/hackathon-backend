@@ -17,6 +17,7 @@ app = FastAPI(title="FleaMarketApp API", version="1.0.0")
 origins = [
     "https://hackathon-frontend-theta.vercel.app",
     "http://localhost:3000",
+    "https://hackathon-frontend-kzimpr5gj-ukyos-projects-be079937.vercel.app",
 ]
 
 app.add_middleware(
