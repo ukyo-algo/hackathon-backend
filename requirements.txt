@@ -1,8 +1,9 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-mysqlclient
+# mysqlclient  <-- この行を削除 (またはコメントアウト)
+pymysql       # <-- この行を追加
 google-cloud-sql-connector[pymysql]
 python-dotenv
-pydantic          
-email-validator   
+pydantic
+email-validator
