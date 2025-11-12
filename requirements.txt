@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-pymysql
-cloud-sql-python-connector[pymysql]
+mysqlclient
+google-cloud-sql-connector[pymysql]
 python-dotenv
+pydantic          
+email-validator   
