@@ -310,7 +310,7 @@ SQLAlchemyはよくわからないから，別の方法があるはず
 - [ ] **DB (Models) (3h):** `backend/app/db/models.py` に `User` と `Item` モデルを定義する。
 - [ ] **Backend (Seeding) (2h):** 開発用にダミーの `Item` データを投入するスクリプトを作成・実行する。
 - [ ] **Backend (API) (4h):** `GET /api/v1/items`（全商品一覧）と `GET /api/v1/items/{item_id}`（商品詳細）を実装する。
-- [ ] **Frontend (UI) (5h):** `pages/HomePage.js` で商品グリッドを表示し、`react-router-dom` で詳細ページへのルーティングを設定する。
+- [ ] **Frontend (UI) (5h):** `pages/Homepage.js` で商品グリッドを表示し、`react-router-dom` で詳細ページへのルーティングを設定する。
 - [ ] **Backend (Auth) (6h):** `POST /register`（登録）, `POST /token`（ログイン）を実装し、JWTトークン発行ロジックを完成させる。（JWTはいらない．）
 JWTトークンは，ユーザー名役割idなどから生成される鍵の文字列
 
