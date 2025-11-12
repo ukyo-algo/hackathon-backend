@@ -21,6 +21,7 @@ def getconnection() -> sqlalchemy.engine.base.Connection:
         user=DB_USER,
         password=DB_PASS,
         db=DB_NAME,
+        charset="utf8mb4",
     )
     return conn
 
