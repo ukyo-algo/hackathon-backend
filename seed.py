@@ -1,14 +1,13 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
 
 # --- .envファイルを読み込む ---
-# このスクリプト(seed.py)が `backend` フォルダ直下にあることを想定
-# .envファイルから環境変数を読み込み、os.environ にセットする
 load_dotenv()
 
 # --- 環境変数が読み込まれた後に、DBモジュールをインポートする ---
-# (database.py はインポート時に os.environ を読み込むため、load_dotenv() の後に置く)
 try:
     # FastAPIアプリ内からのインポートパス (例: uvicorn)
     from app.db.database import SessionLocal, engine, Base
@@ -36,6 +35,7 @@ DUMMY_USERS = [
     },
 ]
 
+# ↓↓↓ 新しいフィールドを追加した DUMMY_ITEMS リスト ↓↓↓
 DUMMY_ITEMS = [
     {
         "name": "おしゃれなTシャツ",
@@ -43,7 +43,10 @@ DUMMY_ITEMS = [
         "price": 1800,
         "image_url": "https://picsum.photos/seed/tshirt/400/300",
         "is_instant_buy_ok": True,
-        "seller_id": "seed_user_1_uid",  # User 1が出品
+        "seller_id": "seed_user_1_uid",
+        "category": "ファッション",
+        "brand": "Vintage Select",
+        "condition": "目立った傷や汚れなし",
     },
     {
         "name": "レトロなカメラ",
@@ -51,7 +54,10 @@ DUMMY_ITEMS = [
         "price": 5000,
         "image_url": "https://picsum.photos/seed/camera/400/300",
         "is_instant_buy_ok": False,
-        "seller_id": "seed_user_1_uid",  # User 1が出品
+        "seller_id": "seed_user_1_uid",
+        "category": "家電・スマホ・カメラ",
+        "brand": None,
+        "condition": "全体的に状態が悪い",
     },
     {
         "name": "使い古したスニーカー",
@@ -59,7 +65,10 @@ DUMMY_ITEMS = [
         "price": 2500,
         "image_url": "https://picsum.photos/seed/sneaker/400/300",
         "is_instant_buy_ok": True,
-        "seller_id": "seed_user_2_uid",  # User 2が出品
+        "seller_id": "seed_user_2_uid",
+        "category": "靴",
+        "brand": "Nike",
+        "condition": "傷や汚れあり",
     },
     {
         "name": "ゲーミングマウス",
@@ -67,9 +76,13 @@ DUMMY_ITEMS = [
         "price": 4200,
         "image_url": "https://picsum.photos/seed/mouse/400/300",
         "is_instant_buy_ok": True,
-        "seller_id": "seed_user_1_uid",  # User 1が出品
+        "seller_id": "seed_user_1_uid",
+        "category": "PC周辺機器",
+        "brand": "Logicool",
+        "condition": "未使用に近い",
     },
 ]
+# ↑↑↑ DUMMY_ITEMS リストの修正終わり ↑↑↑
 
 
 def seed_data():
@@ -83,7 +96,6 @@ def seed_data():
 
     try:
         # --- 1. テーブルの（再）作成 ---
-        # 開発の初期段階では、毎回テーブルを削除して作り直すのがクリーン
         print("Dropping existing tables...")
         Base.metadata.drop_all(bind=engine)
         print("Creating new tables...")
@@ -95,9 +107,8 @@ def seed_data():
         for user_data in DUMMY_USERS:
             user = User(**user_data)
             db.add(user)
-            created_users[user.firebase_uid] = user  # 後で使うために保存
+            created_users[user.firebase_uid] = user
 
-        # ユーザーを先にコミット（Itemが参照できるように）
         db.commit()
         print(f"Created {len(created_users)} users.")
 
@@ -105,15 +116,18 @@ def seed_data():
         print("Creating dummy items...")
         created_items = []
         for item_data in DUMMY_ITEMS:
-            # Itemモデルのインスタンスを作成
+            # Itemモデルのインスタンスを作成 (すべての必要なフィールドを渡す)
             item = Item(
                 name=item_data["name"],
                 description=item_data["description"],
                 price=item_data["price"],
                 image_url=item_data["image_url"],
                 is_instant_buy_ok=item_data["is_instant_buy_ok"],
-                # seller_id ではなく、上で作成した User オブジェクトを直接代入
-                # これにより、SQLAlchemyが seller_id を自動で設定してくれる
+                # ↓↓↓ 新しい必須フィールドと任意フィールドを渡す ↓↓↓
+                category=item_data["category"],
+                brand=item_data["brand"],
+                condition=item_data["condition"],
+                # ↑↑↑ 新しい必須フィールドと任意フィールドを渡す ↑↑↑
                 seller=created_users[item_data["seller_id"]],
             )
             db.add(item)
@@ -127,11 +141,9 @@ def seed_data():
 
     except Exception as e:
         print(f"An error occurred during seeding: {e}")
-        # エラーが発生したら、変更を元に戻す
         db.rollback()
 
     finally:
-        # 成功しても失敗しても、セッションを閉じる
         db.close()
         print("Database session closed.")
 

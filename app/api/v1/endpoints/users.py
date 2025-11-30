@@ -15,7 +15,7 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
         .filter(models.User.firebase_uid == user.firebase_uid)
         .first()
     )
-    if db_user:
+    if db_user:  # すでに存在する場合はそのまま返す
         return db_user
 
     new_user = models.User(
@@ -23,8 +23,8 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
         username=user.username,
         email=user.email,
         icon_url=user.icon_url,
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    )  # 新しいユーザーを作成
+    db.add(new_user)  # 新しいユーザーをDBセッションに追加
+    db.commit()  # DBに保存
+    db.refresh(new_user)  # 新しいユーザーの情報をDBから取得して更新
     return new_user

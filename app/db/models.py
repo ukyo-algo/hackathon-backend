@@ -27,6 +27,7 @@ class User(Base):
 
 
 # アイテムモデル
+# アイテムモデル
 class Item(Base):
     __tablename__ = "items"
 
@@ -35,12 +36,11 @@ class Item(Base):
     description = Column(Text, nullable=True)
     price = Column(Integer, nullable=False)
     status = Column(String(50), default="on_sale", nullable=False, index=True)
-    # 将来的にItemPhotoモデルを作るため、ダミーの画像URLを入れておく
     image_url = Column(String(255), nullable=True)
-    is_instant_buy_ok = Column(Boolean, default=True)  # クイック・モード用
+    is_instant_buy_ok = Column(Boolean, default=True)
+    category = Column(String(100), nullable=False)  # カテゴリ
+    brand = Column(String(100), nullable=True)  # ブランド名
+    condition = Column(String(50), nullable=False)  # 商品の状態
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-    # 外部キー(FK) - 出品者 ForeignKey=別のテーブルの主キーを参照することを約束
     seller_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
-    # --- リレーション ---
-    # 出品者 (Userモデルとの接続)
     seller = relationship("User", back_populates="items")

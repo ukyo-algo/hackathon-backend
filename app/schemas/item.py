@@ -19,11 +19,17 @@ class ItemBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class Item(ItemBase):
-    """
-    APIレスポンス用のスキーマ（出品者情報を含む）
-    """
+# app/schemas/item.py の末尾に追記
 
-    # models.Item.seller (relationship) から
-    # UserBase の形に自動変換される
-    seller: UserBase
+
+# 商品出品リクエスト用のスキーマ
+class ItemCreate(BaseModel):
+    # 必須フィールド
+    name: str
+    price: int
+    category: str
+    condition: str
+    description: str | None = None
+    brand: str | None = None
+    image_url: str | None = None
+    is_instant_buy_ok: bool = True
