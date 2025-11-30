@@ -4,10 +4,15 @@ from fastapi import (
     HTTPException,
     status,
 )  # ← HTTPExceptionとstatusを追加
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from typing import List
+
 from app.db.database import get_db
 from app.db import models
-from app.schemas import user as user_schema
+from app.schemas import item as item_schema
+
+# ★★★ 追加した関数を使うためのインポート ★★★
+from app.api.v1.endpoints.users import get_current_user_dummy  # users.pyからインポート
 
 router = APIRouter()
 
