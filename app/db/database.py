@@ -11,7 +11,7 @@ DB_NAME = os.environ["DB_NAME"]
 INSTANCE_CONNECTION_NAME = os.environ["INSTANCE_CONNECTION_NAME"]
 
 
-def getconnection() -> sqlalchemy.engine.base.Connection:
+def getconnection() -> sqlalchemy.engine.base.Connection:  # 接続を生成
     """
     Cloud SQL への接続を確立する関数.
     """
@@ -31,7 +31,7 @@ engine = sqlalchemy.create_engine(
     creator=getconnection,
 )
 
-# DBを生成する関数
+# DBをとのセッションを生成する関数
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()  # モデルの基底クラス
 

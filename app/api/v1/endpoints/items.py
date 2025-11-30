@@ -25,7 +25,9 @@ def get_items(db: Session = Depends(get_db)):  # DBセッションを取得
     N+1問題を回避するため、出品者情報(seller)もJOINして取得します。
     """
     items = (
-        db.query(models.Item)
+        db.query(
+            models.Item
+        )  # Itemクラス内のtablename変数を元に，参照したいdbを指定(今回はitemsテーブルを参照することになる)
         .options(joinedload(models.Item.seller))  # relationship("seller") をJOIN
         .filter(models.Item.status == "on_sale")
         .order_by(models.Item.created_at.desc())
