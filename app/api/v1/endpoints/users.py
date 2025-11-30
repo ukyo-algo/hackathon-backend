@@ -5,6 +5,7 @@ from fastapi import (
     Depends,
     HTTPException,
     status,
+    Header,  # ↓↓↓ 追加: ヘッダーを取得するために必要
 )
 from sqlalchemy.orm import Session  # Sessionは必須
 
@@ -42,18 +43,28 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
 
 
 # ★★★ 一時的なダミー認証ユーザー取得関数 ★★★
-def get_current_user_dummy(db: Session = Depends(get_db)):
+def get_current_user(
+    db: Session = Depends(get_db),
+    # フロントエンドから "X-Firebase-Uid" というヘッダーでUIDを受け取る
+    x_firebase_uid: str | None = Header(default=None),
+):
     """
-    ダミーの認証ユーザーを取得する。seed_user_1を固定で返す。
-    本来はリクエストヘッダーのFirebase IDトークンを検証する。
+    リクエストヘッダーのUIDを元に、現在のユーザーを特定する。
     """
-    # 開発環境のダミーユーザーID (seed.py で定義されたもの)
-    DUMMY_UID = "seed_user_1_uid"
-    user = db.query(models.User).filter(models.User.firebase_uid == DUMMY_UID).first()
-    if user is None:
-        # seed.pyが実行されていない場合に備えてエラーを出す
+    if x_firebase_uid is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Dummy user not found. Please run seed.py",
+            detail="認証情報(X-Firebase-Uid)が不足しています",
+        )
+
+    # DBからユーザーを検索
+    user = (
+        db.query(models.User).filter(models.User.firebase_uid == x_firebase_uid).first()
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ユーザーが見つかりません。先に登録してください。",
         )
     return user

@@ -9,7 +9,7 @@ from app.db import models
 from app.schemas import item as item_schema
 from app.schemas import transaction as transaction_schema
 
-from .users import get_current_user_dummy
+from .users import get_current_user
 
 router = APIRouter()
 
@@ -73,7 +73,7 @@ def create_item(
     item_in: item_schema.ItemCreate,  # 入力データ
     db: Session = Depends(get_db),
     # ダミー認証関数で出品者情報を取得
-    current_user: models.User = Depends(get_current_user_dummy),
+    current_user: models.User = Depends(get_current_user),
 ):
     """
     ログイン中のユーザーとして新しい商品を出品します。
@@ -104,7 +104,7 @@ def create_item(
 def buy_item(
     item_id: str,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user_dummy),  # 購入者
+    current_user: models.User = Depends(get_current_user),  # 購入者
 ):
     """
     指定された商品を購入します。
