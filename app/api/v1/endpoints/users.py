@@ -1,18 +1,16 @@
+# hackathon-backend/app/api/v1/endpoints/users.py
+
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     status,
-)  # ← HTTPExceptionとstatusを追加
-from sqlalchemy.orm import Session, joinedload
-from typing import List
+)
+from sqlalchemy.orm import Session  # Sessionは必須
 
 from app.db.database import get_db
 from app.db import models
-from app.schemas import item as item_schema
-
-# ★★★ 追加した関数を使うためのインポート ★★★
-from app.api.v1.endpoints.users import get_current_user_dummy  # users.pyからインポート
+from app.schemas import user as user_schema  # ← user_schemaのインポートを復活
 
 router = APIRouter()
 
@@ -44,7 +42,6 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
 
 
 # ★★★ 一時的なダミー認証ユーザー取得関数 ★★★
-# 商品出品機能などで認証済みユーザーが必要なため、一時的に固定ユーザーを返す
 def get_current_user_dummy(db: Session = Depends(get_db)):
     """
     ダミーの認証ユーザーを取得する。seed_user_1を固定で返す。
