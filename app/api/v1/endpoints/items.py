@@ -1,18 +1,15 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-)  # ← HTTPExceptionとstatusを追加
+# hackathon-backend/app/api/v1/endpoints/items.py
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from app.db.database import get_db
 from app.db import models
 from app.schemas import item as item_schema
-from app.api.v1.endpoints.users import get_current_user_dummy  # users.pyからインポート
 
-# このファイル用のAPIルーターを作成
+from .users import get_current_user_dummy
+
 router = APIRouter()
 
 
