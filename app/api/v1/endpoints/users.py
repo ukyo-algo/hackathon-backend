@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session  # Sessionは必須
 
 from app.db.database import get_db
 from app.db import models
-from app.schemas import user as user_schema  # ← user_schemaのインポートを復活
+from app.schemas import user as user_schema
+
+from typing import List
+from sqlalchemy.orm import joinedload
+from app.schemas import item as item_schema
+from app.schemas import transaction as transaction_schema
 
 router = APIRouter()
 
@@ -42,7 +47,6 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-# ★★★ 一時的なダミー認証ユーザー取得関数 ★★★
 def get_current_user(
     db: Session = Depends(get_db),
     # フロントエンドから "X-Firebase-Uid" というヘッダーでUIDを受け取る
@@ -68,3 +72,37 @@ def get_current_user(
             detail="ユーザーが見つかりません。先に登録してください。",
         )
     return user
+
+
+@router.get("/me/items", response_model=List[item_schema.Item])
+def read_own_items(
+    db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
+):
+    """
+    自分が「出品」した商品の一覧を取得
+    """
+    items = (
+        db.query(models.Item)
+        .options(joinedload(models.Item.seller))  # N+1対策
+        .filter(models.Item.seller_id == current_user.firebase_uid)
+        .order_by(models.Item.created_at.desc())
+        .all()
+    )
+    return items
+
+
+@router.get("/me/transactions", response_model=List[transaction_schema.Transaction])
+def read_own_transactions(
+    db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
+):
+    """
+    自分が「購入」した履歴を取得（商品情報付き）
+    """
+    transactions = (
+        db.query(models.Transaction)
+        .options(joinedload(models.Transaction.item))  # 商品情報も一緒に取得
+        .filter(models.Transaction.buyer_id == current_user.firebase_uid)
+        .order_by(models.Transaction.created_at.desc())
+        .all()
+    )
+    return transactions
