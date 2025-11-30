@@ -7,6 +7,7 @@ from typing import List
 from app.db.database import get_db
 from app.db import models
 from app.schemas import item as item_schema
+from app.schemas import transaction as transaction_schema
 
 from .users import get_current_user_dummy
 
@@ -92,3 +93,47 @@ def create_item(
     db.refresh(new_item, attribute_names=["seller"])
 
     return new_item
+
+
+@router.post(
+    "/{item_id}/buy",
+    response_model=transaction_schema.Transaction,
+    summary="商品の購入（取引成立）",
+    status_code=status.HTTP_201_CREATED,
+)
+def buy_item(
+    item_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_dummy),  # 購入者
+):
+    """
+    指定された商品を購入します。
+    - 商品のステータスを 'sold' に変更
+    - Transaction レコードを作成
+    """
+    # 1. 商品を取得（排他制御は今回は省略）
+    item = db.query(models.Item).filter(models.Item.item_id == item_id).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="商品が見つかりません")
+
+    # 2. バリデーション
+    if item.status != "on_sale":
+        raise HTTPException(status_code=400, detail="この商品は既に売り切れています")
+
+    if item.seller_id == current_user.firebase_uid:
+        raise HTTPException(status_code=400, detail="自分の商品は購入できません")
+
+    # 3. ステータス更新
+    item.status = "sold"
+
+    # 4. トランザクション作成
+    transaction = models.Transaction(
+        item_id=item.item_id, buyer_id=current_user.firebase_uid, price=item.price
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction

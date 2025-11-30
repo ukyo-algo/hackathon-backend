@@ -44,3 +44,19 @@ class Item(Base):
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     seller_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
     seller = relationship("User", back_populates="items")
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    transaction_id = Column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    item_id = Column(String(36), ForeignKey("items.item_id"), nullable=False)
+    buyer_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
+    price = Column(Integer, nullable=False)  # 取引時の価格を記録（価格変動対策）
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    # リレーション
+    item = relationship("Item")
+    buyer = relationship("User")
