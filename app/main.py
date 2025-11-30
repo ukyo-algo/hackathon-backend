@@ -13,6 +13,13 @@ from app.api.v1.api import api_router
 
 app = FastAPI(title="FleaMarketApp API", version="1.0.0")
 
+
+@app.on_event("startup")
+def startup_event():
+    # FastAPIが起動し、ネットワーク接続が安定してからテーブル作成（DB接続）を実行
+    Base.metadata.create_all(bind=engine)
+
+
 # Vercelとの接続
 origins = [
     "https://hackathon-frontend-theta.vercel.app",
