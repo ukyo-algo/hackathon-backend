@@ -9,6 +9,8 @@ from app.db.database import get_db
 from app.db import models
 from app.schemas import item as item_schema  # item.py をインポート
 
+from app.api.v1.endpoints.users import get_current_user_dummy
+
 # このファイル用のAPIルーターを作成
 router = APIRouter()
 
@@ -59,5 +61,36 @@ def get_item(item_id: str, db: Session = Depends(get_db)):  # URLから item_id 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
         )
-
     return item
+
+
+@router.post(
+    "",  # /api/v1/items のルート
+    response_model=item_schema.Item,
+    summary="新規商品出品",
+    status_code=status.HTTP_201_CREATED,
+)
+def create_item(
+    item_in: item_schema.ItemCreate,  # 入力データ
+    db: Session = Depends(get_db),
+    # ダミー認証関数で出品者情報を取得
+    current_user: models.User = Depends(get_current_user_dummy),
+):
+    """
+    ログイン中のユーザーとして新しい商品を出品します。
+    """
+    # ItemCreateスキーマのデータと、current_userから取得したseller_idを使って、Itemモデルのインスタンスを作成
+    new_item = models.Item(
+        **item_in.model_dump(),  # ItemCreateの全フィールド（name, category, brand, priceなど）を展開して渡す
+        seller_id=current_user.firebase_uid,  # 認証済みユーザーのIDを出品者として設定
+    )
+
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+
+    # フロントエンドのスキーマ(Item)に合うように、User情報もロードする
+    # ※ Item.seller リレーションを通じて自動的にロードされるはずですが、明示的にリロードすることで確実にする
+    db.refresh(new_item, attribute_names=["seller"])
+
+    return new_item
