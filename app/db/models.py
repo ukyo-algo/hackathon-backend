@@ -1,10 +1,12 @@
+# hackathon-backend/app/db/models.py
+
 import uuid
 from sqlalchemy import (
     Column,
     String,
     Integer,
     Float,
-    Text,
+    Text,  # ← Text型を使用
     Boolean,
     TIMESTAMP,
     ForeignKey,
@@ -21,7 +23,8 @@ class User(Base):
     firebase_uid = Column(String(255), primary_key=True)
     username = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    # ↓↓↓ 修正: String(255) -> Text に変更
+
+    # ↓↓↓ 修正: URLは長いので Text 型にする ↓↓↓
     icon_url = Column(Text, nullable=True)
 
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
@@ -38,7 +41,7 @@ class Item(Base):
     price = Column(Integer, nullable=False)
     status = Column(String(50), default="on_sale", nullable=False, index=True)
 
-    # ↓↓↓ 修正: String(255) -> Text に変更
+    # ↓↓↓ 修正: URLは長いので Text 型にする ↓↓↓
     image_url = Column(Text, nullable=True)
 
     is_instant_buy_ok = Column(Boolean, default=True)
@@ -50,6 +53,7 @@ class Item(Base):
     seller = relationship("User", back_populates="items")
 
 
+# 取引モデル
 class Transaction(Base):
     __tablename__ = "transactions"
 
@@ -58,9 +62,8 @@ class Transaction(Base):
     )
     item_id = Column(String(36), ForeignKey("items.item_id"), nullable=False)
     buyer_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
-    price = Column(Integer, nullable=False)  # 取引時の価格を記録（価格変動対策）
+    price = Column(Integer, nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
 
-    # リレーション
     item = relationship("Item")
     buyer = relationship("User")
