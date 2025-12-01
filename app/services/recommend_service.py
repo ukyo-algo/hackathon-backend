@@ -5,7 +5,6 @@ from app.db import models
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from janome.tokenizer import Tokenizer
-import pandas as pd
 
 # 日本語解析器 (Janome) の初期化
 tokenizer = Tokenizer()
