@@ -6,3 +6,5 @@ cloud-sql-python-connector[pymysql]
 python-dotenv
 pydantic          
 email-validator 
+scikit-learn
+janome
