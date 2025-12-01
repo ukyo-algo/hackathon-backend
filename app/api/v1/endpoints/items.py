@@ -10,6 +10,7 @@ from app.schemas import item as item_schema
 from app.schemas import transaction as transaction_schema
 
 from .users import get_current_user
+from app.services import recommend_service
 
 router = APIRouter()
 
@@ -137,3 +138,19 @@ def buy_item(
     db.refresh(transaction)
 
     return transaction
+
+
+@router.get(
+    "/{item_id}/recommend",
+    response_model=List[item_schema.Item],
+    summary="おすすめ商品の取得（レコメンド）",
+)
+def get_recommend_items(item_id: str, db: Session = Depends(get_db)):
+    """
+    指定された商品に類似したおすすめ商品を取得します。
+    商品説明文やカテゴリの類似度（TF-IDF + Cosine Similarity）に基づきます。
+    """
+    # レコメンドサービスを呼び出す
+    recommended_items = recommend_service.get_recommendations(db, item_id, limit=3)
+
+    return recommended_items
