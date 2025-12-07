@@ -8,9 +8,11 @@ from app.db.database import get_db
 from app.db import models
 from app.schemas import item as item_schema
 from app.schemas import transaction as transaction_schema
+from app.schemas import comment as comment_schema
 
-from .users import get_current_user
+from app.api.v1.endpoints.users import get_current_user
 from app.services import recommend_service
+
 
 router = APIRouter()
 
@@ -39,28 +41,23 @@ def get_items(db: Session = Depends(get_db)):  # DBセッションを取得
     return items
 
 
-@router.get(
-    "/{item_id}",  # /api/v1/items/{item_id} のルート
-    response_model=item_schema.Item,  # 単体の Item で返る
-    summary="商品詳細取得",
-)
-def get_item(item_id: str, db: Session = Depends(get_db)):  # URLから item_id を受け取る
-    """
-    指定された item_id の商品詳細を取得します。
-    出品者情報(seller)もJOINして取得します。
-    """
+@router.get("/{item_id}", response_model=item_schema.Item)
+def get_item(item_id: str, db: Session = Depends(get_db)):
     item = (
         db.query(models.Item)
-        .options(joinedload(models.Item.seller))
+        .options(
+            joinedload(models.Item.seller),
+            joinedload(models.Item.comments).joinedload(
+                models.Comment.user
+            ),  # コメントと投稿者
+        )
         .filter(models.Item.item_id == item_id)
         .first()
     )
-
-    # 商品が見つからなかった場合、404エラーを返す
     if item is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Item not found")
+    item.like_count = len(item.likes)  # models.Itemにlikesリレーションがあれば動作
+
     return item
 
 
@@ -154,3 +151,55 @@ def get_recommend_items(item_id: str, db: Session = Depends(get_db)):
     recommended_items = recommend_service.get_recommendations(db, item_id, limit=3)
 
     return recommended_items
+
+
+@router.post("/{item_id}/like", summary="いいね！のトグル（登録/解除）")
+def toggle_like(
+    item_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # 既にいいねしているか確認
+    existing_like = (
+        db.query(models.Like)
+        .filter(
+            models.Like.item_id == item_id,
+            models.Like.user_id == current_user.firebase_uid,
+        )
+        .first()
+    )
+
+    if existing_like:
+        # あれば削除（いいね解除）
+        db.delete(existing_like)
+        db.commit()
+        return {"status": "unliked"}
+    else:
+        # なければ作成（いいね登録）
+        new_like = models.Like(item_id=item_id, user_id=current_user.firebase_uid)
+        db.add(new_like)
+        db.commit()
+        return {"status": "liked"}
+
+
+@router.post(
+    "/{item_id}/comments", response_model=comment_schema.Comment, summary="コメント投稿"
+)
+def create_comment(
+    item_id: str,
+    comment_in: comment_schema.CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    item = db.query(models.Item).filter(models.Item.item_id == item_id).first()
+    if not item:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Item not found")
+
+    new_comment = models.Comment(
+        item_id=item_id, user_id=current_user.firebase_uid, content=comment_in.content
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return new_comment

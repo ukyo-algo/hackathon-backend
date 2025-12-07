@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from .user import UserBase  # UserBaseをインポート
+from typing import List
+from .comment import Comment
 
 
 class ItemBase(BaseModel):
@@ -27,11 +29,14 @@ class ItemBase(BaseModel):
 
 class Item(ItemBase):
     """
-    APIレスポンス用のスキーマ（出品者情報を含む）
+    APIレスポンス用のスキーマ（出品者情報、コメントを含む）
     """
 
-    # ItemBaseを継承し、リレーションシップのsellerを追加
     seller: UserBase
+    # 追加: この商品についたコメントのリスト
+    comments: List[Comment] = []
+    # 追加: いいねの数（簡易実装）
+    like_count: int = 0
 
 
 class ItemCreate(BaseModel):

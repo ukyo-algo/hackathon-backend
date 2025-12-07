@@ -29,6 +29,8 @@ class User(Base):
 
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     items = relationship("Item", back_populates="seller")
+    likes = relationship("Like", back_populates="user")
+    comments = relationship("Comment", back_populates="user")
 
 
 # アイテムモデル
@@ -51,6 +53,8 @@ class Item(Base):
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     seller_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
     seller = relationship("User", back_populates="items")
+    likes = relationship("Like", back_populates="item")
+    comments = relationship("Comment", back_populates="item")
 
 
 # 取引モデル
@@ -67,3 +71,27 @@ class Transaction(Base):
 
     item = relationship("Item")
     buyer = relationship("User")
+
+
+class Like(Base):
+    __tablename__ = "likes"
+
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), primary_key=True)
+    item_id = Column(String(36), ForeignKey("items.item_id"), primary_key=True)
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="likes")
+    item = relationship("Item", back_populates="likes")
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    comment_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    item_id = Column(String(36), ForeignKey("items.item_id"), nullable=False)
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    item = relationship("Item", back_populates="comments")
+    user = relationship("User", back_populates="comments")
