@@ -106,3 +106,39 @@ def read_own_transactions(
         .all()
     )
     return transactions
+
+
+@router.get("/me/likes", response_model=List[item_schema.Item])
+def read_own_likes(
+    db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
+):
+    """
+    自分が「いいね」した商品の一覧を取得
+    """
+    liked_items = (
+        db.query(models.Item)
+        .join(models.Like, models.Item.item_id == models.Like.item_id)
+        .options(joinedload(models.Item.seller))  # N+1対策
+        .filter(models.Like.user_id == current_user.firebase_uid)
+        .order_by(models.Like.created_at.desc())
+        .all()
+    )
+    return liked_items
+
+
+@router.get("/me/comments", response_model=List[item_schema.Item])
+def read_own_commented_items(
+    db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
+):
+    """
+    自分が「コメント」した商品の一覧を取得
+    """
+    commented_items = (
+        db.query(models.Item)
+        .join(models.Comment, models.Item.item_id == models.Comment.item_id)
+        .options(joinedload(models.Item.seller))  # N+1対策
+        .filter(models.Comment.user_id == current_user.firebase_uid)
+        .order_by(models.Comment.created_at.desc())
+        .all()
+    )
+    return commented_items
