@@ -19,4 +19,4 @@ ENV PYTHONPATH=/app
 COPY . .
 
 # 7. 起動コマンド
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
