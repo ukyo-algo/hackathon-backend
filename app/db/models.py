@@ -24,35 +24,39 @@ class User(Base):
     firebase_uid = Column(String(255), primary_key=True)
     username = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
-
-    # ↓↓↓ 修正: URLは長いので Text 型にする ↓↓↓
     icon_url = Column(Text, nullable=True)
 
+    # ★ LLM機能追加項目
+    points = Column(Integer, default=0, nullable=False)
+
+    # 1. まず ForeignKey のカラムを定義する (NameError回避のためrelationshipより上に配置)
+    current_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    # リレーションシップ
     items = relationship("Item", back_populates="seller")
     likes = relationship("Like", back_populates="user")
     comments = relationship("Comment", back_populates="user")
-    # ★追加: 現在選択中のキャラクター詳細
+
+    # 2. 定義済みのカラム名を使ってリレーションシップを定義する
     current_persona = relationship(
         "AgentPersona", foreign_keys=[current_persona_id], viewonly=True
     )
-    # ★追加: 所持キャラクター一覧
+
+    # 所持キャラクター一覧
     owned_personas = relationship("UserPersona", back_populates="user")
 
 
-# アイテムモデル
+# 商品モデル
 class Item(Base):
     __tablename__ = "items"
-
     item_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Integer, nullable=False)
     status = Column(String(50), default="on_sale", nullable=False, index=True)
-
-    # ↓↓↓ 修正: URLは長いので Text 型にする ↓↓↓
     image_url = Column(Text, nullable=True)
-
     is_instant_buy_ok = Column(Boolean, default=True)
     category = Column(String(100), nullable=False)
     brand = Column(String(100), nullable=True)
@@ -67,7 +71,6 @@ class Item(Base):
 # 取引モデル
 class Transaction(Base):
     __tablename__ = "transactions"
-
     transaction_id = Column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
@@ -75,31 +78,28 @@ class Transaction(Base):
     buyer_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
     price = Column(Integer, nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-
     item = relationship("Item")
     buyer = relationship("User")
 
 
+# いいねモデル
 class Like(Base):
     __tablename__ = "likes"
-
     user_id = Column(String(255), ForeignKey("users.firebase_uid"), primary_key=True)
     item_id = Column(String(36), ForeignKey("items.item_id"), primary_key=True)
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-
     user = relationship("User", back_populates="likes")
     item = relationship("Item", back_populates="likes")
 
 
+# コメントモデル
 class Comment(Base):
     __tablename__ = "comments"
-
     comment_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     item_id = Column(String(36), ForeignKey("items.item_id"), nullable=False)
     user_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-
     item = relationship("Item", back_populates="comments")
     user = relationship("User", back_populates="comments")
 
@@ -125,7 +125,7 @@ class AgentPersona(Base):
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
 
 
-# ★新規追加: ユーザーの所持キャラ
+# ★新規追加: ユーザーの所持キャラ（好感度を管理）
 class UserPersona(Base):
     __tablename__ = "user_personas"
 
