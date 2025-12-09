@@ -142,3 +142,14 @@ def read_own_commented_items(
         .all()
     )
     return commented_items
+
+
+# app/api/v1/endpoints/users.py に以下を追加
+
+
+@router.get("/me", response_model=user_schema.UserBase)
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    """
+    現在のユーザー情報を取得します。
+    """
+    return current_user
