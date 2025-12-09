@@ -1,27 +1,96 @@
 # hackathon-backend/app/services/llm_service.py
 
 import os
+import json
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 from sqlalchemy.orm import Session
-from app.db import models
+from typing import Dict, Any, List
+from fastapi import HTTPException  # LLMServiceでHTTPExceptionを使うため
 
-# APIキー設定（環境変数から読み込み）
-# Vertex AIの場合は project 引数などが必要ですが、今回はAPI Key方式を想定
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY)
+from app.core.config import settings
+from app.db import models
+from app.api.v1.endpoints.items import get_items  # 仮にここで商品取得APIを呼ぶと想定
+
+# --- LLM クライアントの定義 ---
+# グローバル変数としてクライアントを保持
+client = None
+
+
+def get_gemini_client():
+    """Geminiクライアントを取得または初期化する (レイジー初期化)"""
+    global client
+    if client is not None:
+        return client
+
+    # 環境変数から認証情報を確認
+    api_key = settings.GEMINI_API_KEY
+    project_id = settings.GCP_PROJECT_ID
+
+    try:
+        if api_key:
+            # APIキー認証
+            client = genai.Client(api_key=api_key)
+        elif project_id != "your-gcp-project-id" and project_id:
+            # Vertex AI (GCP) 認証 (プロジェクトID指定)
+            client = genai.Client(project=project_id)
+        else:
+            # 認証情報なしで継続（API呼び出し時にエラーとなる）
+            client = genai.Client()
+
+        print("✅ Gemini Client Initialized.")
+        return client
+    except Exception as e:
+        print(
+            f"⚠️ Gemini Client Initialization Failed. Check GEMINI_API_KEY or GCP_PROJECT_ID: {e}"
+        )
+        # 初期化が失敗しても、Noneを返してアプリ起動は続行させる
+        return None
 
 
 class LLMService:
     def __init__(self, db: Session):
         self.db = db
-        self.model_name = "gemini-1.5-flash"  # 無料枠で高速なモデル
+        self.model_name = settings.GEMINI_MODEL
+        # クライアント初期化処理を関数に委譲
+        self.client = get_gemini_client()
 
+        # 循環参照を避けるため、ItemServiceのインポートとインスタンス化を遅延させる
+        self.item_service = self.get_item_service()
+
+    def get_item_service(self):
+        # 現状ではItemServiceを定義していないため、ここではダミー関数やサービスを返す
+        # 実際の運用では、app/services/item_service.py からインポートする
+        class DummyItemService:
+            def get_popular_item(self):
+                return (
+                    self.db.query(models.Item)
+                    .order_by(models.Item.created_at.desc())
+                    .first()
+                )
+
+            def get_random_item(self):
+                return self.db.query(models.Item).order_by(func.random()).first()
+
+        # データベースセッションを利用するために、DummyItemServiceのインスタンスを返す
+        return DummyItemService()
+
+    # ----------------------------------------------
+    # 1. LLM対話機能のコア (キャラクターなりきり)
+    # ----------------------------------------------
     def chat_with_persona(self, user_id: str, message: str) -> dict:
         """
         ユーザーの設定中のペルソナになりきって返信する
         """
-        # 1. ユーザー取得
+        # クライアントが利用可能かチェック
+        if not self.client:
+            return {
+                "reply": "申し訳ありません。AIシステムが停止しています。管理者に報告してください。",
+                "persona": {"name": "エラー", "avatar_url": "", "theme": "error"},
+            }
+
+        # 1. ユーザーと現在セット中のキャラを取得
         user = (
             self.db.query(models.User)
             .filter(models.User.firebase_uid == user_id)
@@ -34,7 +103,7 @@ class LLMService:
         if user and user.current_persona:
             current_persona = user.current_persona
         else:
-            # ★変更点: 設定がない場合は ID:1 (ドット絵の青年) をデフォルトとして取得
+            # 設定がない場合は ID:1 (ドット絵の青年) をデフォルトとして取得
             default_persona = (
                 self.db.query(models.AgentPersona)
                 .filter(models.AgentPersona.id == 1)
@@ -52,15 +121,14 @@ class LLMService:
                 "theme": current_persona.background_theme,
             }
         else:
-            # 万が一DBにID:1すらない場合の最終防衛ライン（コードでハードコーディング）
-            system_instruction = """
-            あなたはフリマアプリの親切な案内人（ドット絵の青年）です。
-            一人称は「僕」です。ユーザーを「お客さん」と呼び、優しくサポートしてください。
-            """
+            # 最終防衛ライン
+            system_instruction = (
+                "あなたは親切なAIアシスタントです。優しくサポートしてください。"
+            )
             persona_info = {
-                "name": "ドット絵の青年",
-                "avatar_url": "/avatars/male1.png",
-                "theme": "pixel_retro",
+                "name": "AIアシスタント",
+                "avatar_url": "/avatars/default.png",
+                "theme": "default",
             }
 
         # 4. Geminiへの設定
@@ -71,7 +139,7 @@ class LLMService:
 
         try:
             # 5. Geminiにメッセージを送信
-            response = client.models.generate_content(
+            response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=[message],
                 config=config,
@@ -79,9 +147,133 @@ class LLMService:
 
             return {"reply": response.text, "persona": persona_info}
 
-        except Exception as e:
-            print(f"LLM Error: {e}")
+        except APIError as e:
+            print(f"LLM API Error: {e}")
             return {
-                "reply": "あ、ごめんなさい... 通信がうまくいかないみたいです。（エラー）",
+                "reply": f"通信エラーが発生しました。サーバー認証を確認してください。詳細: {e}",
                 "persona": persona_info,
             }
+        except Exception as e:
+            print(f"LLM Unhandled Error: {e}")
+            return {
+                "reply": "あ、ごめんなさい... 予期せぬエラーで応答できません。",
+                "persona": persona_info,
+            }
+
+    # ----------------------------------------------
+    # 2. 出品説明文の自動生成 (Vision機能)
+    # ----------------------------------------------
+    async def generate_item_description(
+        self, image_bytes: bytes, item_name: str
+    ) -> Dict[str, Any]:
+        """
+        画像と商品名から説明文、カテゴリ、ブランドを生成する
+        """
+        if not self.client:
+            raise HTTPException(status_code=503, detail="AIサービスが利用できません。")
+
+        # 画像データを Part オブジェクトに変換 (mime_typeは適宜調整)
+        image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+
+        # LLMに出力させたいJSONスキーマを定義
+        json_schema = {
+            "type": "object",
+            "properties": {
+                "description_text": {
+                    "type": "string",
+                    "description": "商品の魅力を最大限に引き出す、丁寧な長文の説明文。",
+                },
+                "category_guess": {
+                    "type": "string",
+                    "description": "画像から判断した最も適切なカテゴリ。",
+                },
+                "brand_guess": {
+                    "type": "string",
+                    "description": "画像または商品名から判断したブランド名。不明な場合は'不明'と回答。",
+                },
+                "condition_suggest": {
+                    "type": "string",
+                    "description": "商品の状態を提案。",
+                },
+            },
+            "required": [
+                "description_text",
+                "category_guess",
+                "brand_guess",
+                "condition_suggest",
+            ],
+        }
+
+        # プロンプト（AIへの依頼）
+        prompt_text = (
+            f"あなたはプロのフリマ出品代行AIです。提供された画像と商品名『{item_name}』を元に、"
+            f"最高の出品説明文と、適切な分類情報をJSON形式で出力してください。出力は必ずJSONスキーマに従ってください。"
+        )
+
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=json_schema,
+            temperature=0.4,
+        )
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name, contents=[image_part, prompt_text], config=config
+            )
+            # JSON形式で返ってくるため、パースして返す
+            return json.loads(response.text)
+        except APIError as e:
+            raise HTTPException(status_code=500, detail=f"LLM APIエラー: {e}")
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=500, detail="LLMからのレスポンスが不正なJSON形式です。"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"予期せぬエラー: {e}")
+
+    # ----------------------------------------------
+    # 3. ログイン時のおすすめ商品生成 (アイテムサービスとの連携)
+    # ----------------------------------------------
+    def generate_login_recommendation(self, firebase_uid: str) -> Dict[str, Any]:
+        """
+        ログイン時に、設定されたキャラの性格に基づいたおすすめ商品とコメントを生成
+        """
+        # このメソッドはデモ用であり、現在はダミーのロジックです
+        if not self.client:
+            return {"comment": "AIシステムが利用できません。", "item": None}
+
+        user = (
+            self.db.query(models.User)
+            .filter(models.User.firebase_uid == firebase_uid)
+            .first()
+        )
+
+        # ユーザーとキャラが紐付いていない場合のフォールバック
+        if not user or not user.current_persona:
+            item = self.item_service.get_popular_item()
+            return {
+                "comment": "ようこそ！早速、人気のアイテムを見てみましょう！",
+                "item": item,
+            }
+
+        persona = user.current_persona
+
+        # 簡易的なロジック切り替え
+        if "執事" in persona.name:
+            item = (
+                self.item_service.get_popular_item()
+            )  # ダミー: ここで高度なマッチングを呼ぶ
+            comment = "本日は、ご主人様にふさわしい逸品をご紹介いたします。"
+        elif "ギャル" in persona.name:
+            item = self.item_service.get_random_item()
+            comment = "マジでヤバいアイテム見つけたんだけど、見てみて！👀"
+        else:  # ドット絵の青年
+            item = self.item_service.get_popular_item()
+            comment = "おかえりなさい！今日は特に注目されている商品をご紹介しますね。"
+
+        return {
+            "comment": comment,
+            "item": item,
+            "persona_name": persona.name,
+            "persona_avatar": persona.avatar_url,
+        }
