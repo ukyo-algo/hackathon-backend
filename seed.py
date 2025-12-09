@@ -1,30 +1,43 @@
-# hackathon-backend/seed.py (いいね・コメント対応版)
+# hackathon-backend/seed.py
 
 import os
 import random
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 load_dotenv()
 
 try:
     from app.db.database import SessionLocal, engine, Base
-
-    # ↓↓↓ Like, Comment を追加
-    from app.db.models import User, Item, Transaction, Like, Comment
+    from app.db.models import (
+        User,
+        Item,
+        Transaction,
+        Like,
+        Comment,
+        AgentPersona,
+        UserPersona,
+    )
 except ImportError:
+    # パス解決がうまくいかない場合のフォールバック（直接実行時など）
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     from app.db.database import SessionLocal, engine, Base
-    from app.db.models import User, Item, Transaction, Like, Comment
+    from app.db.models import (
+        User,
+        Item,
+        Transaction,
+        Like,
+        Comment,
+        AgentPersona,
+        UserPersona,
+    )
 
+# --- 定数定義 ---
 NUM_ITEMS_TO_GENERATE = 20
-SOLD_OUT_RATE = 0.3
 
-# ... (CATEGORIES, KEYWORDS などの定数定義は前回と同じなので省略可能ですが、念のため全量コピペ推奨) ...
-# (※長くなるので、前回の seed.py の定数定義部分をそのまま使ってください)
-# 以下、seed_data 関数の中身を中心に修正します
-
-# --- データセット (前回と同じ) ---
 CATEGORIES = ["ファッション", "家電・スマホ・カメラ", "靴", "PC周辺機器", "その他"]
 CONDITIONS = [
     "新品、未使用",
@@ -34,21 +47,6 @@ CONDITIONS = [
     "傷や汚れあり",
     "全体的に状態が悪い",
 ]
-KEYWORDS = {
-    "ファッション": ["おしゃれ", "夏物"],
-    "家電・スマホ・カメラ": ["高性能", "最新"],
-    "靴": ["歩きやすい", "レア"],
-    "PC周辺機器": ["ゲーミング", "高速"],
-    "その他": ["便利", "まとめ売り"],
-}  # ※簡略化してます
-ADJECTIVES = ["超美品", "訳あり", "人気の", "伝説の", "普通の"]
-NOUNS = {
-    "ファッション": ["Tシャツ"],
-    "家電・スマホ・カメラ": ["カメラ"],
-    "靴": ["スニーカー"],
-    "PC周辺機器": ["マウス"],
-    "その他": ["置物"],
-}
 BRANDS = [
     "Nike",
     "Adidas",
@@ -63,85 +61,138 @@ BRANDS = [
     "不明",
 ]
 
-
-def generate_random_item(seller_id):
-    category = random.choice(CATEGORIES)
-    # (簡易実装: 前回と同じロジックで生成)
-    return {
-        "name": f"ダミー商品 {random.randint(1,1000)}",
-        "description": "これはダミーです。",
-        "price": 1000,
-        "image_url": f"https://picsum.photos/id/{random.randint(1,100)}/400/300",
-        "is_instant_buy_ok": True,
-        "seller_id": seller_id,
-        "category": category,
-        "brand": "Brand",
-        "condition": "新品",
-        "status": "on_sale",
-    }
+# --- LLM キャラクター定義 ---
+PERSONAS_DATA = [
+    {
+        "id": 1,
+        "name": "ドット絵の青年",
+        "rarity": 1,
+        "system_prompt": """
+あなたはフリマアプリの親切で実直な案内人です。
+一人称は「僕」です。
+ユーザーのことを「お客さん」と呼びます。
+言葉遣いは少し砕けた敬語を使ってください（例：「〜ですね」「〜だと思いますよ」）。
+フリマの初心者にも優しくアドバイスをします。
+絵文字は控えめに、ドット絵のようなレトロな温かみのある雰囲気を醸し出してください。
+""",
+        "avatar_url": "/avatars/male1.png",
+        "background_theme": "pixel_retro",
+    },
+    # 将来的に追加するキャラ（執事など）はここに追記
+]
 
 
 def seed_data():
-    print("Seeding database with Engagement data...")
+    print("Seeding database...")
     db: Session = SessionLocal()
 
     try:
+        # テーブル再作成（既存データはリセットされます）
         print("Dropping & Creating tables...")
         Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
 
-        print("Creating dummy users...")
+        # ---------------------------
+        # 1. キャラクター（AgentPersona）の投入
+        # ---------------------------
+        print("Creating Agent Personas...")
+        for p_data in PERSONAS_DATA:
+            persona = AgentPersona(
+                id=p_data["id"],
+                name=p_data["name"],
+                description="デフォルトキャラクター",
+                system_prompt=p_data["system_prompt"],
+                avatar_url=p_data["avatar_url"],
+                background_theme=p_data["background_theme"],
+                rarity=p_data["rarity"],
+            )
+            db.add(persona)
+        db.commit()
+
+        # ---------------------------
+        # 2. ダミーユーザーの投入
+        # ---------------------------
+        print("Creating Users...")
+        # 全員、初期状態でID:1（ドット絵の青年）をセット
         users_data = [
             {
-                "firebase_uid": "seed_user_1_uid",
+                "firebase_uid": "uid_1",
                 "username": "Seller A",
                 "email": "a@test.com",
+                "points": 100,
+                "current_persona_id": 1,
             },
             {
-                "firebase_uid": "seed_user_2_uid",
+                "firebase_uid": "uid_2",
                 "username": "Buyer B",
                 "email": "b@test.com",
+                "points": 100,
+                "current_persona_id": 1,
             },
             {
-                "firebase_uid": "seed_user_3_uid",
+                "firebase_uid": "uid_3",
                 "username": "User C",
                 "email": "c@test.com",
+                "points": 100,
+                "current_persona_id": 1,
             },
         ]
+
         created_users = []
         for u_data in users_data:
             user = User(**u_data)
             db.add(user)
             created_users.append(user)
         db.commit()
+
         user_ids = [u.firebase_uid for u in created_users]
 
-        print("Creating items & transactions & likes & comments...")
-        for _ in range(NUM_ITEMS_TO_GENERATE):
+        # ---------------------------
+        # 3. 所持キャラ情報（UserPersona）の投入
+        # ---------------------------
+        print("Granting Personas...")
+        for uid in user_ids:
+            # ID:1 のキャラを所持リストに追加
+            up = UserPersona(user_id=uid, persona_id=1, favorability=0)
+            db.add(up)
+        db.commit()
+
+        # ---------------------------
+        # 4. アイテム・取引・エンゲージメントの投入
+        # ---------------------------
+        print("Creating Items, Likes, Comments...")
+        for i in range(NUM_ITEMS_TO_GENERATE):
             seller_id = random.choice(user_ids)
-            # ※本来はgenerate_random_itemを使いますが簡略化のため直接記述
+            category = random.choice(CATEGORIES)
+
             item = Item(
-                name="ダミーアイテム",
-                description="説明",
-                price=1000,
-                category="その他",
-                brand="None",
-                condition="新品",
-                image_url="https://picsum.photos/400/300",
-                is_instant_buy_ok=True,
+                name=f"ダミーアイテム {i+1}",
+                description=f"これは {category} のダミー商品です。状態は良好です。",
+                price=random.randint(500, 15000),
+                category=category,
+                brand=random.choice(BRANDS),
+                condition=random.choice(CONDITIONS),
+                image_url=f"https://picsum.photos/id/{random.randint(1, 100)}/400/300",
+                is_instant_buy_ok=random.choice([True, False]),
                 status="on_sale",
                 seller_id=seller_id,
             )
 
-            # ランダムにいいねをつける
+            # ランダムにいいね
             for uid in user_ids:
-                if random.random() < 0.3:  # 30%の確率でいいね
+                if uid != seller_id and random.random() < 0.3:
                     db.add(Like(user_id=uid, item=item))
 
-            # ランダムにコメントをつける
+            # ランダムにコメント
             for uid in user_ids:
-                if random.random() < 0.2:  # 20%の確率でコメント
-                    db.add(Comment(user_id=uid, item=item, content="気になります！"))
+                if uid != seller_id and random.random() < 0.2:
+                    db.add(
+                        Comment(
+                            user_id=uid,
+                            item=item,
+                            content="気になります！値下げ可能ですか？",
+                        )
+                    )
 
             db.add(item)
 

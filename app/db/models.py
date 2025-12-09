@@ -6,11 +6,12 @@ from sqlalchemy import (
     String,
     Integer,
     Float,
-    Text,  # ← Text型を使用
+    Text,
     Boolean,
     TIMESTAMP,
     ForeignKey,
     func,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -31,6 +32,12 @@ class User(Base):
     items = relationship("Item", back_populates="seller")
     likes = relationship("Like", back_populates="user")
     comments = relationship("Comment", back_populates="user")
+    # ★追加: 現在選択中のキャラクター詳細
+    current_persona = relationship(
+        "AgentPersona", foreign_keys=[current_persona_id], viewonly=True
+    )
+    # ★追加: 所持キャラクター一覧
+    owned_personas = relationship("UserPersona", back_populates="user")
 
 
 # アイテムモデル
@@ -95,3 +102,42 @@ class Comment(Base):
 
     item = relationship("Item", back_populates="comments")
     user = relationship("User", back_populates="comments")
+
+
+# ★新規追加: AIキャラクター（ペルソナ）定義
+class AgentPersona(Base):
+    __tablename__ = "agent_personas"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # 性格を決めるシステムプロンプト
+    system_prompt = Column(Text, nullable=False)
+
+    # アバター画像URL
+    avatar_url = Column(Text, nullable=True)
+
+    # 背景テーマ（MUIの色設定やクラス名に使う予定）
+    background_theme = Column(String(100), nullable=True)
+
+    rarity = Column(Integer, default=1, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+
+# ★新規追加: ユーザーの所持キャラ
+class UserPersona(Base):
+    __tablename__ = "user_personas"
+
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), primary_key=True)
+    persona_id = Column(Integer, ForeignKey("agent_personas.id"), primary_key=True)
+
+    favorability = Column(Integer, default=0, nullable=False)  # 好感度
+    obtained_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="owned_personas")
+    persona = relationship("AgentPersona")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "persona_id", name="_user_persona_uc"),
+    )
