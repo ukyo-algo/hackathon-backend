@@ -8,3 +8,5 @@ pydantic
 email-validator 
 scikit-learn
 janome
+google-genai
+python-dotenv
