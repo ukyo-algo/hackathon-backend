@@ -1,22 +1,22 @@
-# 1. ベースイメージを推奨される「python:3.11-slim」に変更
+# 1. ベースイメージ
 FROM python:3.11-slim
 
-# 2. ログのバッファリングを無効 (Cloud Loggingのために推奨)
+# 2. ログのバッファリングを無効
 ENV PYTHONUNBUFFERED=1
 
-# 作業ディレクトリを設定
-WORKDIR /src
+# 3. 作業ディレクトリの設定
+WORKDIR /app
 
-# requirements.txt を先にコピー (レイヤーキャッシュのため)
-COPY requirements.txt ./
-
-# 3. 「--no-cache-dir」を追加 (イメージサイズ削減)
+# 4. 依存関係のインストール
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. アプリケーションコードをすべてコピー
-# (このDockerfileはプロジェクトルートに置くことを想定)
-# 4. アプリケーションコードをすべてコピー
+# 5. ★重要: Pythonにアプリケーションのルートを教える
+ENV PYTHONPATH=/app
+
+# 6. アプリケーションコードのコピー
+# 現在のディレクトリ(.)を コンテナの /app にコピー
 COPY . .
 
-# 5. 起動コマンドを「api.main」から「app.main」に修正
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# 7. 起動コマンド
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
