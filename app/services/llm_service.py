@@ -8,7 +8,7 @@ from google.genai.errors import APIError
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from fastapi import HTTPException
-from google.oauth2 import service_account  # ★追加: サービスアカウント認証用
+from google.oauth2 import service_account  # サービスアカウント認証用
 
 from app.core.config import settings
 from app.db import models
@@ -36,7 +36,6 @@ def get_gemini_client():
 
     try:
         # 3. JSON文字列を辞書(dict)に変換
-        # クラウドの環境変数に入れたJSONは文字列なのでパースが必要です
         creds_info = json.loads(sa_key_string)
 
         # 4. 認証オブジェクトを作成
@@ -45,8 +44,14 @@ def get_gemini_client():
         # 5. JSONの中からプロジェクトIDも自動取得
         project_id = creds_info.get("project_id")
 
-        # 6. クライアント初期化
-        client = genai.Client(credentials=creds, project=project_id)
+        # 6. クライアント初期化 (ここを修正)
+        # Service Accountを使う場合は vertexai=True と location が必須です
+        client = genai.Client(
+            vertexai=True,
+            project=project_id,
+            location="us-central1",  # Geminiが安定して動作するリージョン
+            credentials=creds,
+        )
 
         print(
             f"✅ Gemini Client Initialized with Service Account (Project: {project_id})"
@@ -73,7 +78,6 @@ class LLMService:
 
     def get_item_service(self):
         # 現状ではItemServiceを定義していないため、ここではダミー関数やサービスを返す
-        # 実際の運用では、app/services/item_service.py からインポートする
         class DummyItemService:
             def get_popular_item(self_dummy):
                 # importしたmodelsを使用
@@ -84,7 +88,7 @@ class LLMService:
                 )
 
             def get_random_item(self_dummy):
-                # ランダム取得のロジック（SQLAlchemyのfunc.random()等が必要だが、ここでは簡易実装）
+                # ランダム取得のロジック（簡易実装）
                 return self.db.query(models.Item).first()
 
         # データベースセッションを利用するために、DummyItemServiceのインスタンスを返す
