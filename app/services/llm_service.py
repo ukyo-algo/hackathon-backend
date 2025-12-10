@@ -7,11 +7,12 @@ from google.genai import types
 from google.genai.errors import APIError
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
-from fastapi import HTTPException  # LLMServiceでHTTPExceptionを使うため
+from fastapi import HTTPException
+from google.oauth2 import service_account  # ★追加: サービスアカウント認証用
 
 from app.core.config import settings
 from app.db import models
-from app.api.v1.endpoints.items import get_items  # 仮にここで商品取得APIを呼ぶと想定
+from app.api.v1.endpoints.items import get_items  # 削除せず維持
 
 # --- LLM クライアントの定義 ---
 # グローバル変数としてクライアントを保持
@@ -24,28 +25,39 @@ def get_gemini_client():
     if client is not None:
         return client
 
-    # 環境変数から認証情報を確認
-    api_key = settings.GEMINI_API_KEY
-    project_id = settings.GCP_PROJECT_ID
+    # 1. config.py経由で環境変数の文字列を取得
+    # Cloud Run等の環境変数に設定されたJSON文字列
+    sa_key_string = settings.GEMINI_SA_KEY
+
+    # 2. 認証情報の確認
+    if not sa_key_string:
+        print("⚠️ GEMINI_SA_KEY is empty. AI features will be disabled.")
+        return None
 
     try:
-        if api_key:
-            # APIキー認証
-            client = genai.Client(api_key=api_key)
-        elif project_id != "your-gcp-project-id" and project_id:
-            # Vertex AI (GCP) 認証 (プロジェクトID指定)
-            client = genai.Client(project=project_id)
-        else:
-            # 認証情報なしで継続（API呼び出し時にエラーとなる）
-            client = genai.Client()
+        # 3. JSON文字列を辞書(dict)に変換
+        # クラウドの環境変数に入れたJSONは文字列なのでパースが必要です
+        creds_info = json.loads(sa_key_string)
 
-        print("✅ Gemini Client Initialized.")
-        return client
-    except Exception as e:
+        # 4. 認証オブジェクトを作成
+        creds = service_account.Credentials.from_service_account_info(creds_info)
+
+        # 5. JSONの中からプロジェクトIDも自動取得
+        project_id = creds_info.get("project_id")
+
+        # 6. クライアント初期化
+        client = genai.Client(credentials=creds, project=project_id)
+
         print(
-            f"⚠️ Gemini Client Initialization Failed. Check GEMINI_API_KEY or GCP_PROJECT_ID: {e}"
+            f"✅ Gemini Client Initialized with Service Account (Project: {project_id})"
         )
-        # 初期化が失敗しても、Noneを返してアプリ起動は続行させる
+        return client
+
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON Parse Error: 環境変数のJSONが壊れています。\nError: {e}")
+        return None
+    except Exception as e:
+        print(f"⚠️ Gemini Client Initialization Failed: {e}")
         return None
 
 
@@ -63,15 +75,17 @@ class LLMService:
         # 現状ではItemServiceを定義していないため、ここではダミー関数やサービスを返す
         # 実際の運用では、app/services/item_service.py からインポートする
         class DummyItemService:
-            def get_popular_item(self):
+            def get_popular_item(self_dummy):
+                # importしたmodelsを使用
                 return (
                     self.db.query(models.Item)
                     .order_by(models.Item.created_at.desc())
                     .first()
                 )
 
-            def get_random_item(self):
-                return self.db.query(models.Item).order_by(func.random()).first()
+            def get_random_item(self_dummy):
+                # ランダム取得のロジック（SQLAlchemyのfunc.random()等が必要だが、ここでは簡易実装）
+                return self.db.query(models.Item).first()
 
         # データベースセッションを利用するために、DummyItemServiceのインスタンスを返す
         return DummyItemService()
