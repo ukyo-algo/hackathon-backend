@@ -26,7 +26,6 @@ def get_gemini_client():
         return client
 
     # 1. config.py経由で環境変数の文字列を取得
-    # Cloud Run等の環境変数に設定されたJSON文字列
     sa_key_string = settings.GEMINI_SA_KEY
 
     # 2. 認証情報の確認
@@ -38,19 +37,18 @@ def get_gemini_client():
         # 3. JSON文字列を辞書(dict)に変換
         creds_info = json.loads(sa_key_string)
 
-        # 4. 認証オブジェクトを作成
-        creds = service_account.Credentials.from_service_account_info(creds_info)
+        # 4. 認証オブジェクトを作成 (★修正: scopesを追加)
+        # ここで「Google Cloudを使います」と宣言しないと invalid_scope エラーになります
+        creds = service_account.Credentials.from_service_account_info(
+            creds_info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
 
         # 5. JSONの中からプロジェクトIDも自動取得
         project_id = creds_info.get("project_id")
 
-        # 6. クライアント初期化 (ここを修正)
-        # Service Accountを使う場合は vertexai=True と location が必須です
+        # 6. クライアント初期化
         client = genai.Client(
-            vertexai=True,
-            project=project_id,
-            location="us-central1",  # Geminiが安定して動作するリージョン
-            credentials=creds,
+            vertexai=True, project=project_id, location="us-central1", credentials=creds
         )
 
         print(
