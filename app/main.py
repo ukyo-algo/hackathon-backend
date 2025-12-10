@@ -9,6 +9,10 @@ from app.db.database import get_db, engine, Base
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 
+from sqlalchemy.orm import Session
+from app.db.database import SessionLocal
+from app.db import models
+
 app = FastAPI(title="FleaMarketApp API", version="1.0.0")
 
 
@@ -74,3 +78,46 @@ def read_users(db: Session = Depends(get_db)):
 @app.get("/")
 def read_root():
     return {"message": "Hello World from FastAPI!"}
+
+
+@app.on_event("startup")
+def startup_event():
+    # ... (既存のテーブル作成処理)
+    if engine is None:
+        return
+    Base.metadata.create_all(bind=engine)
+
+    # ★追加: 初期キャラデータの投入
+    db = SessionLocal()
+    try:
+        # キャラが1人もいなければ作成
+        if db.query(models.AgentPersona).count() == 0:
+            print("🚀 Seeding initial personas...")
+            personas = [
+                models.AgentPersona(
+                    name="ドット絵の青年",
+                    description="デフォルトのAIアシスタントです。",
+                    system_prompt="あなたは親切なAIアシスタントです。フリマアプリのサポートを丁寧に行ってください。",
+                    avatar_url="https://api.dicebear.com/7.x/pixel-art/svg?seed=user1",  # フリー素材
+                    rarity=1,
+                ),
+                models.AgentPersona(
+                    name="強気なギャル",
+                    description="マジで頼りになるギャル店員。",
+                    system_prompt="あなたはフリマアプリのカリスマ店員であるギャルです。「〜だし」「ウケる」などの口調で、フレンドリーかつ強気に接客してください。",
+                    avatar_url="https://api.dicebear.com/7.x/avataaars/svg?seed=Gal&eyebrows=unibrowNatural&clothing=collarAndSweater",
+                    rarity=2,
+                ),
+                models.AgentPersona(
+                    name="老練な執事",
+                    description="あなたの出品を完璧にサポートします。",
+                    system_prompt="あなたは英国紳士風の執事です。「〜でございます」「お任せください」などの口調で、極めて丁寧に出品をサポートしてください。",
+                    avatar_url="https://api.dicebear.com/7.x/avataaars/svg?seed=Butler&top=hat&facialHair=moustacheFancy",
+                    rarity=3,
+                ),
+            ]
+            db.add_all(personas)
+            db.commit()
+            print("✅ Personas seeded.")
+    finally:
+        db.close()

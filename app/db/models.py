@@ -1,143 +1,77 @@
-# hackathon-backend/app/db/models.py
-
-import uuid
 from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Float,
-    Text,
     Boolean,
-    TIMESTAMP,
+    Column,
+    Integer,
+    String,
     ForeignKey,
-    func,
-    UniqueConstraint,
+    DateTime,
+    Table,
+    Text,
 )
 from sqlalchemy.orm import relationship
-from .database import Base
+from sqlalchemy.sql import func
+from app.db.database import Base
+
+# --- 中間テーブル: ユーザーがどのキャラを持っているか (Many-to-Many) ---
+user_persona_association = Table(
+    "user_persona_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("persona_id", Integer, ForeignKey("agent_personas.id")),
+    Column("obtained_at", DateTime(timezone=True), server_default=func.now()),
+)
 
 
-# ユーザーモデル
 class User(Base):
     __tablename__ = "users"
 
-    firebase_uid = Column(String(255), primary_key=True)
-    username = Column(String(100), nullable=False)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    icon_url = Column(Text, nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    firebase_uid = Column(String, unique=True, index=True)
+    username = Column(String)
+    email = Column(String)
+    icon_url = Column(String, nullable=True)
 
-    # ★ LLM機能追加項目
-    points = Column(Integer, default=0, nullable=False)
+    # ガチャ用のポイント（将来用）
+    points = Column(Integer, default=1000)
 
-    # 1. まず ForeignKey のカラムを定義する (NameError回避のためrelationshipより上に配置)
+    # ★追加: 現在セットしているペルソナID
     current_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
 
-    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # リレーションシップ
+    # リレーション
     items = relationship("Item", back_populates="seller")
+    transactions = relationship("Transaction", back_populates="buyer")
     likes = relationship("Like", back_populates="user")
     comments = relationship("Comment", back_populates="user")
 
-    # 2. 定義済みのカラム名を使ってリレーションシップを定義する
-    current_persona = relationship(
-        "AgentPersona", foreign_keys=[current_persona_id], viewonly=True
+    # ★追加: 現在のパートナーキャラ（1体）
+    current_persona = relationship("AgentPersona", foreign_keys=[current_persona_id])
+
+    # ★追加: 所持している全キャラ（リスト）
+    owned_personas = relationship(
+        "AgentPersona", secondary=user_persona_association, back_populates="owners"
     )
 
-    # 所持キャラクター一覧
-    owned_personas = relationship("UserPersona", back_populates="user")
 
-
-# 商品モデル
-class Item(Base):
-    __tablename__ = "items"
-    item_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    price = Column(Integer, nullable=False)
-    status = Column(String(50), default="on_sale", nullable=False, index=True)
-    image_url = Column(Text, nullable=True)
-    is_instant_buy_ok = Column(Boolean, default=True)
-    category = Column(String(100), nullable=False)
-    brand = Column(String(100), nullable=True)
-    condition = Column(String(50), nullable=False)
-    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-    seller_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
-    seller = relationship("User", back_populates="items")
-    likes = relationship("Like", back_populates="item")
-    comments = relationship("Comment", back_populates="item")
-
-
-# 取引モデル
-class Transaction(Base):
-    __tablename__ = "transactions"
-    transaction_id = Column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    item_id = Column(String(36), ForeignKey("items.item_id"), nullable=False)
-    buyer_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
-    price = Column(Integer, nullable=False)
-    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-    item = relationship("Item")
-    buyer = relationship("User")
-
-
-# いいねモデル
-class Like(Base):
-    __tablename__ = "likes"
-    user_id = Column(String(255), ForeignKey("users.firebase_uid"), primary_key=True)
-    item_id = Column(String(36), ForeignKey("items.item_id"), primary_key=True)
-    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-    user = relationship("User", back_populates="likes")
-    item = relationship("Item", back_populates="likes")
-
-
-# コメントモデル
-class Comment(Base):
-    __tablename__ = "comments"
-    comment_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    item_id = Column(String(36), ForeignKey("items.item_id"), nullable=False)
-    user_id = Column(String(255), ForeignKey("users.firebase_uid"), nullable=False)
-    content = Column(Text, nullable=False)
-    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-    item = relationship("Item", back_populates="comments")
-    user = relationship("User", back_populates="comments")
-
-
-# ★新規追加: AIキャラクター（ペルソナ）定義
 class AgentPersona(Base):
+    """
+    AIキャラクターの定義テーブル
+    """
+
     __tablename__ = "agent_personas"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True)  # キャラ名 (例: "熱血勇者")
+    description = Column(String)  # 説明文 (一覧画面用)
+    system_prompt = Column(Text)  # Geminiへの命令文
+    avatar_url = Column(String)  # アイコン画像のURL
 
-    # 性格を決めるシステムプロンプト
-    system_prompt = Column(Text, nullable=False)
+    # ガチャのレアリティ（1:Normal, 2:Rare, 3:SSR など）
+    rarity = Column(Integer, default=1)
 
-    # アバター画像URL
-    avatar_url = Column(Text, nullable=True)
-
-    # 背景テーマ（MUIの色設定やクラス名に使う予定）
-    background_theme = Column(String(100), nullable=True)
-
-    rarity = Column(Integer, default=1, nullable=False)
-    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-
-
-# ★新規追加: ユーザーの所持キャラ（好感度を管理）
-class UserPersona(Base):
-    __tablename__ = "user_personas"
-
-    user_id = Column(String(255), ForeignKey("users.firebase_uid"), primary_key=True)
-    persona_id = Column(Integer, ForeignKey("agent_personas.id"), primary_key=True)
-
-    favorability = Column(Integer, default=0, nullable=False)  # 好感度
-    obtained_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
-
-    user = relationship("User", back_populates="owned_personas")
-    persona = relationship("AgentPersona")
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "persona_id", name="_user_persona_uc"),
+    # リレーション
+    owners = relationship(
+        "User", secondary=user_persona_association, back_populates="owned_personas"
     )

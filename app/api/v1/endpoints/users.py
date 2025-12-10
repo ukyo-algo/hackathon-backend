@@ -35,15 +35,26 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
     if db_user:  # すでに存在する場合はそのまま返す
         return db_user
 
+    # 1. デフォルトキャラ(ID:1)を取得
+    default_persona = (
+        db.query(models.AgentPersona).filter(models.AgentPersona.id == 1).first()
+    )
+
     new_user = models.User(
         firebase_uid=user.firebase_uid,
         username=user.username,
         email=user.email,
         icon_url=user.icon_url,
-    )  # 新しいユーザーを作成
-    db.add(new_user)  # 新しいユーザーをDBセッションに追加
-    db.commit()  # DBに保存
-    db.refresh(new_user)  # 新しいユーザーの情報をDBから取得して更新
+        current_persona_id=1 if default_persona else None,  # 最初から装備
+    )
+
+    # ★重要: 「所持リスト」にも追加
+    if default_persona:
+        new_user.owned_personas.append(default_persona)
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
     return new_user
 
 
