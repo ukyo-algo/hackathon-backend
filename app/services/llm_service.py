@@ -134,7 +134,7 @@ class LLMService:
             persona_info = {
                 "name": current_persona.name,
                 "avatar_url": current_persona.avatar_url,
-                "theme": current_persona.background_theme,
+                "theme": current_persona.theme_color,
             }
         else:
             # 最終防衛ライン
