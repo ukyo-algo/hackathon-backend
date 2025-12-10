@@ -24,3 +24,16 @@ class UserCreate(UserBase):
 
     # UserBase の全フィールドを使用するため、ここでは追加フィールドなし
     pass
+
+
+class PersonaBase(BaseModel):
+    id: int
+    name: str
+    avatar_url: Optional[str] = None
+    description: Optional[str] = None
+
+    # ★追加: ここに書かないとフロントエンドに届きません
+    theme_color: Optional[str] = "#1976d2"
+
+    class Config:
+        from_attributes = True
