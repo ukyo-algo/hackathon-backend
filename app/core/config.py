@@ -31,7 +31,7 @@ class Settings:
     # llm_service.py でこの値をパースして認証に使用します
     GEMINI_SA_KEY: str = os.getenv("GEMINI_SA_KEY", "")
 
-    GEMINI_MODEL: str = "gemini-1.5-flash-001"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
 
 # 設定インスタンスを作成してエクスポート
