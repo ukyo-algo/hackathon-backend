@@ -1,4 +1,4 @@
-# app/main.py
+# hackathon-backend/app/main.py
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,8 +11,7 @@ from app.schemas import user as user_schema
 from app.db.database import get_db, engine, Base, SessionLocal
 from app.api.v1.api import api_router
 
-# シードロジックのインポート
-from app.db.seed import seed_if_empty
+# ★修正: seed_if_empty のインポートを削除。起動時には呼ばない。
 
 app = FastAPI(title="FleaMarketApp API", version="1.0.0")
 
@@ -22,22 +21,21 @@ def startup_event():
     # 1. DBエンジンの確認
     if engine is None:
         print("⚠️ Database engine is None. Skipping operations.")
+        # DB接続が失敗しても、FastAPI自体は起動させておく（ヘルスチェックをパスするため）
         return
 
     try:
-        # 2. テーブル作成 (存在しない場合のみ作成される)
+        # 2. テーブル作成 (存在しない場合のみ作成されるため高速)
         Base.metadata.create_all(bind=engine)
         print("✅ Tables check passed.")
 
-        # 3. 初期データの自動投入 (空の場合のみ)
-        db = SessionLocal()
-        try:
-            seed_if_empty(db)
-        finally:
-            db.close()
+        # 3. 初期データの自動投入 (削除/コメントアウト)
+        # 起動時間の問題があるため、この処理は手動で実行する
 
     except Exception as e:
         print(f"⚠️ Startup error: {e}")
+        # 例外発生時も起動プロセスを停止させず、アプリを起動させる
+        # DB接続失敗時もヘルスチェックをパスするため
 
 
 # --- CORS設定 ---
