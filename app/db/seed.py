@@ -57,6 +57,13 @@ def create_initial_data(db: Session):
         {"uid": "uid_1", "name": "TechLover", "email": "tech@test.com"},
         {"uid": "uid_2", "name": "Fashionista", "email": "fashion@test.com"},
         {"uid": "uid_3", "name": "Beginner", "email": "beg@test.com"},
+        # ★ 全キャラ解放済みユーザーを追加
+        {
+            "uid": "uid_master",
+            "name": "MasterUser",
+            "email": "master@test.com",
+            "all_personas": True,
+        },
     ]
     created_users = []
     for u_conf in users_config:
@@ -67,9 +74,15 @@ def create_initial_data(db: Session):
             points=5000,
             current_persona_id=1,
         )
-        # 全キャラ所持させる(テスト用)
-        for p in persona_objects.values():
-            user.owned_personas.append(p)
+
+        if u_conf.get("all_personas"):
+            # 全キャラ所持
+            for p in persona_objects.values():
+                user.owned_personas.append(p)
+        else:
+            # 通常ユーザーはデフォルトキャラ(ID:1)のみ所持
+            if 1 in persona_objects:
+                user.owned_personas.append(persona_objects[1])
 
         db.add(user)
         created_users.append(user)
