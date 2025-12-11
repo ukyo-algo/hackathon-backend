@@ -36,5 +36,6 @@ class UserCreate(UserBase):
     APIがユーザー作成時にリクエストボディとして受け取るスキーマ
     """
 
-    # UserBase の全フィールドを使用するため、ここでは追加フィールドなし
+    # 作成時は current_persona_id は必須ではない（バックエンドで設定する）
+    current_persona_id: Optional[int] = None
     pass
