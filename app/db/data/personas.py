@@ -3,7 +3,7 @@
 PERSONAS_DATA = [
     {
         "id": 1,
-        "name": "ドット絵の青年",
+        "name": "青年",
         "rarity": 1,
         "theme_color": "#1976d2",  # 青
         "avatar_url": "/avatars/model1.png",

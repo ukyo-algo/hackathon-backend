@@ -2,6 +2,17 @@ from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
 
 
+class PersonaBase(BaseModel):
+    id: int
+    name: str
+    avatar_url: Optional[str] = None
+    description: Optional[str] = None
+    theme_color: Optional[str] = "#1976d2"
+
+    class Config:
+        from_attributes = True
+
+
 class UserBase(BaseModel):
     """
     APIでユーザー情報を返すときの基本スキーマ
@@ -11,6 +22,8 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     icon_url: str | None = None
+    current_persona_id: int
+    current_persona: Optional["PersonaBase"] = None
 
     # SQLAlchemyモデル（models.User）から
     # Pydanticモデル（UserBase）への自動変換を有効にする
@@ -25,16 +38,3 @@ class UserCreate(UserBase):
 
     # UserBase の全フィールドを使用するため、ここでは追加フィールドなし
     pass
-
-
-class PersonaBase(BaseModel):
-    id: int
-    name: str
-    avatar_url: Optional[str] = None
-    description: Optional[str] = None
-
-    # ★追加: ここに書かないとフロントエンドに届きません
-    theme_color: Optional[str] = "#1976d2"
-
-    class Config:
-        from_attributes = True

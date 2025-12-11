@@ -164,3 +164,55 @@ def read_users_me(current_user: models.User = Depends(get_current_user)):
     現在のユーザー情報を取得します。
     """
     return current_user
+
+
+@router.put("/me/persona", response_model=user_schema.UserBase)
+def update_user_persona(
+    persona_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    現在のユーザーのAIアシスタントキャラクターを更新します。
+    """
+    # 指定されたpersona_idがユーザーの所持リストにあるか確認
+    persona = (
+        db.query(models.AgentPersona)
+        .filter(
+            models.AgentPersona.id == persona_id,
+            models.AgentPersona.owners.any(
+                models.User.firebase_uid == current_user.firebase_uid
+            ),
+        )
+        .first()
+    )
+    if not persona:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="指定されたキャラクターは所持していません。",
+        )
+    # ユーザーのcurrent_persona_idを更新
+    current_user.current_persona_id = persona_id
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
+
+
+@router.get("/me/personas", response_model=List[user_schema.PersonaBase])
+def read_own_personas(
+    db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
+):
+    """
+    自分が所持しているAIアシスタントキャラクターの一覧を取得
+    """
+    personas = (
+        db.query(models.AgentPersona)
+        .filter(
+            models.AgentPersona.owners.any(
+                models.User.firebase_uid == current_user.firebase_uid
+            )
+        )
+        .all()
+    )
+    return personas
