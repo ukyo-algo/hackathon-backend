@@ -21,6 +21,14 @@ from app.schemas import transaction as transaction_schema
 router = APIRouter()
 
 
+@router.get("/personas", response_model=List[user_schema.PersonaBase])
+def read_all_personas(db: Session = Depends(get_db)):
+    """
+    全キャラクターのリストを取得します。
+    """
+    return db.query(models.AgentPersona).all()
+
+
 @router.post("/", response_model=user_schema.UserBase)
 def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
     """
