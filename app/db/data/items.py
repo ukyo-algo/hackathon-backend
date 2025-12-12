@@ -1,5 +1,4 @@
 # app/db/data/items.py
-
 REALISTIC_ITEMS = [
     # --- ガジェット / 家電 ---
     {
@@ -92,7 +91,7 @@ REALISTIC_ITEMS = [
         "price": 8500,
         "condition": "目立った傷や汚れなし",
         "description": "サイズが合わなかったため出品します。3回ほど外で履きましたが、ソール以外は綺麗です。箱はありません。現品のみの発送となります。\\n#NIKE #スニーカー。状態は「目立った傷や汚れなし」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_sneaker.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_sneaker.png",
     },
     {
         "name": "MacBook Air M1 2020 (ジャンク扱い)",
@@ -101,7 +100,7 @@ REALISTIC_ITEMS = [
         "price": 65000,
         "condition": "やや傷や汚れあり",
         "description": "画面の右上に小さなヒビがあります（写真3枚目参照）。動作には問題ありませんが、気になる方はご遠慮ください。充電器付きです。\\n即購入OKです！。状態は「やや傷や汚れあり」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_macbook.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_macbook.png",
     },
     {
         "name": "ヴィンテージ デニムジャケット Gジャン",
@@ -110,7 +109,7 @@ REALISTIC_ITEMS = [
         "price": 12800,
         "condition": "目立った傷や汚れなし",
         "description": "古着屋で2万円で購入しました。かなり味が出ていてカッコいいです。断捨離のため泣く泣く出品します。\\n着丈65cm 身幅50cm\\n古着にご理解ある方のみお願いします。状態は「目立った傷や汚れなし」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_denim.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_denim.png",
     },
     {
         "name": "モンステラ 観葉植物 鉢付き",
@@ -119,7 +118,7 @@ REALISTIC_ITEMS = [
         "price": 3200,
         "condition": "未使用に近い",
         "description": "引っ越しに伴い手放します。とても元気で新しい葉っぱも出てきています。鉢ごと発送します。\\n※植物なので配送中に変化があるかもしれません。状態は「未使用に近い」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_plant.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_plant.png",
     },
     {
         "name": "PS5 純正コントローラー DualSense",
@@ -128,7 +127,7 @@ REALISTIC_ITEMS = [
         "price": 5500,
         "condition": "未使用に近い",
         "description": "予備で買いましたがほとんど使いませんでした。動作確認済み。ドリフト現象もありません。\\n値下げ交渉はご遠慮ください。状態は「未使用に近い」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_game.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_game.png",
     },
     {
         "name": "イタリア製 本革ハンドバッグ キャメル",
@@ -137,7 +136,7 @@ REALISTIC_ITEMS = [
         "price": 18000,
         "condition": "目立った傷や汚れなし",
         "description": "数年前にイタリア旅行で購入したものです。日本では手に入らないモデルだと思います。角に少し擦れがありますが、クリームで手入れすれば目立たない程度です。状態は「目立った傷や汚れなし」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_bag.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_bag.png",
     },
     {
         "name": "アコースティックギター 初心者セット",
@@ -146,7 +145,7 @@ REALISTIC_ITEMS = [
         "price": 9800,
         "condition": "目立った傷や汚れなし",
         "description": "Fコードで挫折したので出品します... ケースとカポタストもお付けします。これから始める方にぴったりだと思います。\\n大型商品のため送料別でお願いします。状態は「目立った傷や汚れなし」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_guitar.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_guitar.png",
     },
     {
         "name": "メンズ腕時計 クロノグラフ 電池切れ",
@@ -155,7 +154,7 @@ REALISTIC_ITEMS = [
         "price": 1500,
         "condition": "やや傷や汚れあり",
         "description": "電池が切れていますが、交換すれば動くと思います。保証はできませんのでジャンク扱いでお願いします。部品取りなどにどうぞ。状態は「やや傷や汚れあり」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_watch.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_watch.png",
     },
     {
         "name": "全自動コーヒーメーカー (取説なし)",
@@ -164,7 +163,7 @@ REALISTIC_ITEMS = [
         "price": 4200,
         "condition": "目立った傷や汚れなし",
         "description": "毎朝美味しいコーヒーが飲めます！新しいものを買ったので出品します。簡易清掃済みですが、コーヒーの粉が少し残っているかもしれません。状態は「目立った傷や汚れなし」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_coffee.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_coffee.png",
     },
     {
         "name": "ビジネス書・自己啓発本 10冊まとめ売り",
@@ -173,7 +172,7 @@ REALISTIC_ITEMS = [
         "price": 2500,
         "condition": "目立った傷や汚れなし",
         "description": "話題のビジネス書まとめ売りです。「嫌われる勇気」などベストセラー入ってます。書き込みはありません。\\nバラ売り不可。状態は「目立った傷や汚れなし」。購入後は室内で丁寧に保管しています。発送は防水+緩衝材で梱包します。非喫煙・ペットなしの環境です。即購入OK、気になる点はコメントください。",
-        "image_url": "/demo_products/demo_book.png",
+        "image_url": "https://hackathon-frontend-theta.vercel.app/demo_products/demo_book.png",
     },
     # --- 安い商品 (¥500-¥3000) ---
     {
