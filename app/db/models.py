@@ -14,14 +14,25 @@ from sqlalchemy.sql import func
 from app.db.database import Base
 
 
-# --- 中間テーブル: ユーザーがどのキャラを持っているか (Many-to-Many) ---
-user_persona_association = Table(
-    "user_persona_association",
-    Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("persona_id", Integer, ForeignKey("agent_personas.id")),
-    Column("obtained_at", DateTime(timezone=True), server_default=func.now()),
-)
+# --- 中間テーブル改め、所持状況管理モデル ---
+class UserPersona(Base):
+    __tablename__ = "user_personas"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    persona_id = Column(Integer, ForeignKey("agent_personas.id"), primary_key=True)
+    
+    # 重複入手数（クラロワ方式）
+    stack_count = Column(Integer, default=1)
+    # レベル（将来用）
+    level = Column(Integer, default=1)
+    # 経験値（将来用）
+    exp = Column(Integer, default=0)
+    
+    obtained_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # リレーション
+    user = relationship("User", back_populates="owned_personas_association")
+    persona = relationship("AgentPersona")
 
 
 # --- 1. User Model ---
@@ -52,9 +63,13 @@ class User(Base):
 
     # キャラクター関連
     current_persona = relationship("AgentPersona", foreign_keys=[current_persona_id])
-    owned_personas = relationship(
-        "AgentPersona", secondary=user_persona_association, back_populates="owners"
-    )
+    
+    # 中間テーブルへのリレーション
+    owned_personas_association = relationship("UserPersona", back_populates="user")
+    
+    # 便利なショートカット（直接Personaオブジェクトにアクセスしたい場合用）
+    # ※ association_proxy を使うとよりスマートですが、今回はプロパティで簡易実装するか、
+    #   ロジック側で owned_personas_association を経由するように修正します。
 
 
 # --- 2. Item Model ---
@@ -162,6 +177,7 @@ class AgentPersona(Base):
     theme_color = Column(String(50), default="#1976d2")
 
     # リレーション
-    owners = relationship(
-        "User", secondary=user_persona_association, back_populates="owned_personas"
-    )
+    # owners = relationship("User", secondary="user_personas", back_populates="owned_personas")
+    # ↑ 中間テーブルをクラス化したため、直接のMany-to-Manyリレーションは定義しづらい
+    # 必要なら association_proxy を使うが、今回は逆参照はあまり使わないのでコメントアウトか削除
+    pass

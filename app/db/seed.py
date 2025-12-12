@@ -19,7 +19,7 @@ except ImportError:
 
 try:
     from app.db.database import SessionLocal, engine, Base
-    from app.db.models import User, Item, Like, Comment, AgentPersona
+    from app.db.models import User, Item, Like, Comment, AgentPersona, UserPersona
 
     # 作成したデータファイルからインポート
     from app.db.data.personas import PERSONAS_DATA
@@ -74,17 +74,20 @@ def create_initial_data(db: Session):
             points=5000,
             current_persona_id=1,
         )
+        db.add(user)
+        db.flush() # IDを確定させる
 
         if u_conf.get("all_personas"):
             # 全キャラ所持
             for p in persona_objects.values():
-                user.owned_personas.append(p)
+                up = UserPersona(user_id=user.id, persona_id=p.id, stack_count=1)
+                db.add(up)
         else:
             # 通常ユーザーはデフォルトキャラ(ID:1)のみ所持
             if 1 in persona_objects:
-                user.owned_personas.append(persona_objects[1])
+                up = UserPersona(user_id=user.id, persona_id=1, stack_count=1)
+                db.add(up)
 
-        db.add(user)
         created_users.append(user)
     db.commit()
 

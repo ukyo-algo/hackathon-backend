@@ -58,9 +58,20 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
 
     # ★重要: 「所持リスト」にも追加
     if default_persona:
-        new_user.owned_personas.append(default_persona)
+        # new_user.owned_personas.append(default_persona)
+        # ↑ 中間テーブルクラス化に伴い、直接appendできなくなったため修正
+        # まずユーザーを保存してIDを確定させる
+        db.add(new_user)
+        db.flush()
+        
+        # 中間テーブルレコードを作成
+        user_persona = models.UserPersona(
+            user_id=new_user.id,
+            persona_id=default_persona.id,
+            stack_count=1
+        )
+        db.add(user_persona)
 
-    db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
@@ -184,17 +195,17 @@ def update_user_persona(
     現在のユーザーのAIアシスタントキャラクターを更新します。
     """
     # 指定されたpersona_idがユーザーの所持リストにあるか確認
-    persona = (
-        db.query(models.AgentPersona)
+    # 中間テーブル(UserPersona)を介してチェック
+    user_persona = (
+        db.query(models.UserPersona)
         .filter(
-            models.AgentPersona.id == persona_id,
-            models.AgentPersona.owners.any(
-                models.User.firebase_uid == current_user.firebase_uid
-            ),
+            models.UserPersona.user_id == current_user.id,
+            models.UserPersona.persona_id == persona_id
         )
         .first()
     )
-    if not persona:
+    
+    if not user_persona:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="指定されたキャラクターは所持していません。",
@@ -214,6 +225,15 @@ def read_own_personas(
     """
     自分が所持しているAIアシスタントキャラクターの一覧を取得
     """
+    # 中間テーブル経由でPersonaオブジェクトを取得して返す
+    # UserPersonaのリストではなく、AgentPersonaのリストを返す必要があるためJOINする
+    personas = (
+        db.query(models.AgentPersona)
+        .join(models.UserPersona, models.AgentPersona.id == models.UserPersona.persona_id)
+        .filter(models.UserPersona.user_id == current_user.id)
+        .all()
+    )
+    return personas
     personas = (
         db.query(models.AgentPersona)
         .filter(
