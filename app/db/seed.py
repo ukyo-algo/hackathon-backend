@@ -37,11 +37,11 @@ except ImportError as e:
     sys.exit(1)
 
 
-# デモ画像を配信するバックエンドのベースURL
+# デモ画像を配信するフロントエンドのベースURL
 # フロントエンドの別ドメインから画像を参照する場合に備え、絶対URLを保存する
-DEMO_IMAGE_BASE_URL = os.getenv(
-    "DEMO_IMAGE_BASE_URL",
-    "http://localhost:8000",
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "http://localhost:3000",
 ).rstrip("/")
 
 
@@ -119,7 +119,7 @@ def _build_demo_image_url(relative_url: str) -> str:
 
     if not relative_url.startswith("/"):
         return relative_url
-    return f"{DEMO_IMAGE_BASE_URL}{relative_url}"
+    return f"{FRONTEND_URL}{relative_url}"
 
 
 def create_initial_data(db: Session):
