@@ -9,7 +9,7 @@ from typing import List
 
 from app.db.database import SessionLocal
 from app.db.models import Item
-from app.services.llm_service import llm_service
+from app.services.llm_service import get_llm_service
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -39,6 +39,9 @@ async def search_items(
     if not all_items:
         return []
 
+    # LLMサービスインスタンスを取得
+    llm_svc = get_llm_service(db)
+
     # LLMに検索クエリの意図を解析させて、関連商品を絞る
     search_prompt = f"""
     ユーザーが以下の検索キーワードで商品を探しています:
@@ -57,7 +60,7 @@ async def search_items(
     """
 
     try:
-        response = await llm_service.get_response(search_prompt)
+        response = await llm_svc.get_response(search_prompt)
         item_ids = _parse_item_ids(response, all_items)
 
         # IDに基づいて商品を返す

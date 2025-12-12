@@ -321,3 +321,12 @@ class LLMService:
             "persona_name": persona.name,
             "persona_avatar": persona.avatar_url,
         }
+
+
+# グローバルなllm_serviceインスタンス（依存性注入で使用）
+llm_service = None
+
+
+def get_llm_service(db: Session) -> LLMService:
+    """LLMServiceのインスタンスを取得"""
+    return LLMService(db)
