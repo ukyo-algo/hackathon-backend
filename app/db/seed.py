@@ -19,7 +19,14 @@ except ImportError:
 
 try:
     from app.db.database import SessionLocal, engine, Base
-    from app.db.models import User, Item, Like, Comment, AgentPersona, UserPersona
+    from app.db.models import (
+        User,
+        Item,
+        Like,
+        Comment,
+        AgentPersona,
+        UserPersona,
+    )
 
     # 作成したデータファイルからインポート
     from app.db.data.personas import PERSONAS_DATA
@@ -30,37 +37,89 @@ except ImportError as e:
     sys.exit(1)
 
 
+# デモ画像を配信するバックエンドのベースURL
+# フロントエンドの別ドメインから画像を参照する場合に備え、絶対URLを保存する
+DEMO_IMAGE_BASE_URL = os.getenv(
+    "DEMO_IMAGE_BASE_URL",
+    "http://localhost:8000",
+).rstrip("/")
+
+
 # --- ヘルパー関数 ---
+
+
 def _get_product_image_url(category: str) -> str:
-    """カテゴリに応じてUnplashの高品質画像URLを返す"""
+    """カテゴリに応じてUnsplashの画像URLを返す"""
+
     image_map = {
         "家電・スマホ・カメラ": [
-            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop",  # ヘッドフォン
-            "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=400&h=300&fit=crop",  # iPhone
-            "https://images.unsplash.com/photo-1612198188060-c7ebbffbc4d7?w=400&h=300&fit=crop",  # カメラ
+            (
+                "https://images.unsplash.com/photo-1505740420928-"
+                "5e560c06d30e?w=400&h=300&fit=crop"
+            ),  # ヘッドフォン
+            (
+                "https://images.unsplash.com/photo-1484704849700-"
+                "f032a568e944?w=400&h=300&fit=crop"
+            ),  # iPhone
+            (
+                "https://images.unsplash.com/photo-1612198188060-"
+                "c7ebbffbc4d7?w=400&h=300&fit=crop"
+            ),  # カメラ
         ],
         "靴": [
-            "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop",  # スニーカー
-            "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=300&fit=crop",  # 靴
+            (
+                "https://images.unsplash.com/photo-1542291026-"
+                "7eec264c27ff?w=400&h=300&fit=crop"
+            ),  # スニーカー
+            (
+                "https://images.unsplash.com/photo-1460353581641-"
+                "37baddab0fa2?w=400&h=300&fit=crop"
+            ),  # 靴
         ],
         "ファッション": [
-            "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&h=300&fit=crop",  # コート
-            "https://images.unsplash.com/photo-1556821552-5f6c82f6e6c1?w=400&h=300&fit=crop",  # パーカー
-            "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=300&fit=crop",  # バッグ
+            (
+                "https://images.unsplash.com/photo-1594938298603-"
+                "c8148c4dae35?w=400&h=300&fit=crop"
+            ),  # コート
+            (
+                "https://images.unsplash.com/photo-1556821552-"
+                "5f6c82f6e6c1?w=400&h=300&fit=crop"
+            ),  # パーカー
+            (
+                "https://images.unsplash.com/photo-1548036328-"
+                "c9fa89d128fa?w=400&h=300&fit=crop"
+            ),  # バッグ
         ],
         "PC周辺機器": [
-            "https://images.unsplash.com/photo-1587829191301-dc798b83add3?w=400&h=300&fit=crop",  # マウス
-            "https://images.unsplash.com/photo-1587829191351-b8f3a8c4da5e?w=400&h=300&fit=crop",  # キーボード
+            (
+                "https://images.unsplash.com/photo-1587829191301-"
+                "dc798b83add3?w=400&h=300&fit=crop"
+            ),  # マウス
+            (
+                "https://images.unsplash.com/photo-1587829191351-"
+                "b8f3a8c4da5e?w=400&h=300&fit=crop"
+            ),  # キーボード
         ],
     }
 
     urls = image_map.get(
         category,
         [
-            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop"  # デフォルト
+            (
+                "https://images.unsplash.com/photo-1492684223066-"
+                "81342ee5ff30?w=400&h=300&fit=crop"
+            ),
         ],
     )
     return random.choice(urls)
+
+
+def _build_demo_image_url(relative_url: str) -> str:
+    """デモ画像のパスを絶対URLに変換する"""
+
+    if not relative_url.startswith("/"):
+        return relative_url
+    return f"{DEMO_IMAGE_BASE_URL}{relative_url}"
 
 
 def create_initial_data(db: Session):
@@ -112,7 +171,11 @@ def create_initial_data(db: Session):
         if u_conf.get("all_personas"):
             # 全キャラ所持
             for p in persona_objects.values():
-                up = UserPersona(user_id=user.id, persona_id=p.id, stack_count=1)
+                up = UserPersona(
+                    user_id=user.id,
+                    persona_id=p.id,
+                    stack_count=1,
+                )
                 db.add(up)
         else:
             # 通常ユーザーはデフォルトキャラ(ID:1)のみ所持
@@ -129,6 +192,14 @@ def create_initial_data(db: Session):
 
     for item_data in REALISTIC_ITEMS:
         seller_uid = random.choice(user_uids)
+
+        # image_url が既に指定されている場合（デモ画像）は絶対URLへ変換
+        if "image_url" in item_data and item_data["image_url"].startswith("/"):
+            image_url = _build_demo_image_url(item_data["image_url"])
+        else:
+            # 未指定の場合は Unsplash から自動割り当て
+            image_url = _get_product_image_url(item_data["category"])
+
         item = Item(
             name=item_data["name"],
             description=item_data["description"],
@@ -136,8 +207,7 @@ def create_initial_data(db: Session):
             category=item_data["category"],
             brand=item_data["brand"],
             condition=item_data["condition"],
-            # Unplashの高品質画像をカテゴリごとに割り当て
-            image_url=_get_product_image_url(item_data["category"]),
+            image_url=image_url,
             is_instant_buy_ok=True,
             status="on_sale",
             seller_id=seller_uid,
@@ -173,7 +243,6 @@ def seed_if_empty(db: Session):
         db.rollback()
 
 
-# --- メインロジック 2: 手動リセット用 ---
 def reset_and_seed():
     """
     テーブルを全削除して再作成し、データを投入する。

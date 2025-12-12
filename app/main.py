@@ -1,7 +1,9 @@
 # hackathon-backend/app/main.py
 
+import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -54,6 +56,21 @@ app.add_middleware(
 
 # --- ルーター ---
 app.include_router(api_router, prefix="/api/v1")
+
+# --- スタティックファイル (デモ画像) ---
+# フロントエンドの public/demo_products をマウント
+demo_products_path = os.path.join(
+    os.path.dirname(__file__), "../..", "hackathon-frontend/public/demo_products"
+)
+if os.path.exists(demo_products_path):
+    app.mount(
+        "/demo_products",
+        StaticFiles(directory=demo_products_path),
+        name="demo_products",
+    )
+    print(f"✅ Demo products mounted: {demo_products_path}")
+else:
+    print(f"⚠️ Demo products directory not found: {demo_products_path}")
 
 
 # --- 簡易エンドポイント ---
