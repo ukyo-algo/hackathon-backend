@@ -31,6 +31,38 @@ except ImportError as e:
 
 
 # --- ヘルパー関数 ---
+def _get_product_image_url(category: str) -> str:
+    """カテゴリに応じてUnplashの高品質画像URLを返す"""
+    image_map = {
+        "家電・スマホ・カメラ": [
+            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop",  # ヘッドフォン
+            "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=400&h=300&fit=crop",  # iPhone
+            "https://images.unsplash.com/photo-1612198188060-c7ebbffbc4d7?w=400&h=300&fit=crop",  # カメラ
+        ],
+        "靴": [
+            "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop",  # スニーカー
+            "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=300&fit=crop",  # 靴
+        ],
+        "ファッション": [
+            "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&h=300&fit=crop",  # コート
+            "https://images.unsplash.com/photo-1556821552-5f6c82f6e6c1?w=400&h=300&fit=crop",  # パーカー
+            "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=300&fit=crop",  # バッグ
+        ],
+        "PC周辺機器": [
+            "https://images.unsplash.com/photo-1587829191301-dc798b83add3?w=400&h=300&fit=crop",  # マウス
+            "https://images.unsplash.com/photo-1587829191351-b8f3a8c4da5e?w=400&h=300&fit=crop",  # キーボード
+        ],
+    }
+
+    urls = image_map.get(
+        category,
+        [
+            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop"  # デフォルト
+        ],
+    )
+    return random.choice(urls)
+
+
 def create_initial_data(db: Session):
     """実際にデータを投入する共通ロジック"""
 
@@ -75,7 +107,7 @@ def create_initial_data(db: Session):
             current_persona_id=1,
         )
         db.add(user)
-        db.flush() # IDを確定させる
+        db.flush()  # IDを確定させる
 
         if u_conf.get("all_personas"):
             # 全キャラ所持
@@ -104,8 +136,8 @@ def create_initial_data(db: Session):
             category=item_data["category"],
             brand=item_data["brand"],
             condition=item_data["condition"],
-            # Picsumでランダム画像
-            image_url=f"https://picsum.photos/seed/{random.randint(1,999)}/400/300",
+            # Unplashの高品質画像をカテゴリごとに割り当て
+            image_url=_get_product_image_url(item_data["category"]),
             is_instant_buy_ok=True,
             status="on_sale",
             seller_id=seller_uid,
