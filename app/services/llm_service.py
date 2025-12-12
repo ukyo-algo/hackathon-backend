@@ -118,8 +118,36 @@ class LLMService:
         # 2. キャラ設定の取得とフォールバック処理
         if user and user.current_persona:
             current_persona = user.current_persona
+        elif user:
+            # current_persona_id が未設定だが、所持ペルソナがある場合は先頭を自動セット
+            first_owned = (
+                self.db.query(models.AgentPersona)
+                .join(
+                    models.UserPersona,
+                    models.AgentPersona.id == models.UserPersona.persona_id,
+                )
+                .filter(models.UserPersona.user_id == user.id)
+                .first()
+            )
+            if first_owned:
+                user.current_persona_id = first_owned.id
+                self.db.commit()
+                self.db.refresh(user)
+                current_persona = first_owned
+            else:
+                # 所持なしの場合はデフォルト(1)をセット
+                default_persona = (
+                    self.db.query(models.AgentPersona)
+                    .filter(models.AgentPersona.id == 1)
+                    .first()
+                )
+                if default_persona:
+                    user.current_persona_id = default_persona.id
+                    self.db.commit()
+                    self.db.refresh(user)
+                    current_persona = default_persona
         else:
-            # 設定がない場合は ID:1 (ドット絵の青年) をデフォルトとして取得
+            # ユーザーが見つからない場合のフォールバック
             default_persona = (
                 self.db.query(models.AgentPersona)
                 .filter(models.AgentPersona.id == 1)
