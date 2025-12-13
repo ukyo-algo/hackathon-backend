@@ -1,5 +1,11 @@
 # hackathon-backend/app/db/seed.py
-
+RARITY_LABELS = {
+    1: "ノーマル",
+    2: "レア",
+    3: "スーパーレア",
+    4: "ウルトラレア",
+    5: "チャンピョン",
+}
 import os
 import random
 import sys
@@ -68,6 +74,7 @@ def create_initial_data(db: Session):
             avatar_url=p_data["avatar_url"],
             rarity=p_data["rarity"],
             theme_color=p_data["theme_color"],
+            rarity_name=RARITY_LABELS.get(p_data["rarity"], ""),
         )
         db.add(persona)
         persona_objects[p_data["id"]] = persona

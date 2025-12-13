@@ -187,6 +187,7 @@ class AgentPersona(Base):
 
     # キャラクターのテーマカラー
     theme_color = Column(String(50), default="#1976d2")
+    rarity_name = Column(String(50), default="ノーマル")
 
     # リレーション
     # owners = relationship("User", secondary="user_personas", back_populates="owned_personas")
