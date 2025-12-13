@@ -1,3 +1,10 @@
+RARITY_LABELS = {
+    1: "ノーマル",
+    2: "レア",
+    3: "スーパーレア",
+    4: "ウルトラレア",
+    5: "チャンピョン",
+}
 # hackathon-backend/app/api/v1/endpoints/gacha.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -96,4 +103,5 @@ def draw_gacha(
         "is_new": is_new,
         "stack_count": stack_count,
         "message": message,
+        "rarity_label": RARITY_LABELS.get(drawn_persona.rarity, ""),
     }
