@@ -38,7 +38,6 @@ def draw_gacha(
     all_personas = db.query(models.AgentPersona).all()
     if not all_personas:
         raise HTTPException(status_code=500, detail="排出対象のキャラクターがいません")
-        rarity_name = getattr(drawn_persona, "rarity_name", None)
     # --- GACHA_PROBABILITIESと同じ値をサーバー側にも定義 ---
     GACHA_PROBABILITIES = {
         1: 0.60,  # 60%
@@ -101,7 +100,7 @@ def draw_gacha(
         description=drawn_persona.description,
         theme_color=drawn_persona.theme_color,
         rarity=drawn_persona.rarity,
-        rarity_name=RARITY_LABELS.get(drawn_persona.rarity, ""),
+        rarity_name=drawn_persona.rarity_name,
     )
     return {
         "persona": persona_out,
