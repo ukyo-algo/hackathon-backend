@@ -98,10 +98,13 @@ def draw_gacha(
 
     db.commit()
 
+    # persona情報をdict化し、rarity_nameを追加
+    persona_dict = drawn_persona.__dict__.copy()
+    persona_dict["rarity_name"] = RARITY_LABELS.get(drawn_persona.rarity, "")
+
     return {
-        "persona": drawn_persona,
+        "persona": persona_dict,
         "is_new": is_new,
         "stack_count": stack_count,
         "message": message,
-        "rarity_label": RARITY_LABELS.get(drawn_persona.rarity, ""),
     }
