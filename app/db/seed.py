@@ -38,9 +38,6 @@ except ImportError as e:
 
 from app.db.data.image_urls import UNSPLASH_IMAGE_URLS
 
-FRONTEND_URL = os.getenv("FRONTEND_URL")
-print(f"Using FRONTEND_URL: {FRONTEND_URL}")
-
 
 def _get_product_image_url(category: str) -> str:
     """カテゴリに応じてUnsplashの画像URLを返す"""
@@ -50,7 +47,7 @@ def _get_product_image_url(category: str) -> str:
 
 def _build_demo_image_url(relative_url: str) -> str:
     """デモ画像のパスを絶対URLに変換する"""
-
+    FRONTEND_URL = os.getenv("FRONTEND_URL")
     if not relative_url.startswith("/"):
         return relative_url
     return f"{FRONTEND_URL}{relative_url}"
@@ -128,8 +125,9 @@ def create_initial_data(db: Session):
         seller_uid = random.choice(user_uids)
 
         # image_url が既に指定されている場合（デモ画像）は絶対URLへ変換
-        if "image_url" in item_data and item_data["image_url"].startswith("/"):
+        if "image_url" in item_data:
             image_url = _build_demo_image_url(item_data["image_url"])
+            print(f"using_{image_url}")
         else:
             # 未指定の場合は Unsplash から自動割り当て
             image_url = _get_product_image_url(item_data["category"])
