@@ -182,6 +182,8 @@ class AgentPersona(Base):
     system_prompt = Column(Text)
     avatar_url = Column(String(512))
     rarity = Column(Integer, default=1)
+    skill_name = Column(String(255))
+    skill_effect = Column(String(255))
 
     # キャラクターのテーマカラー
     theme_color = Column(String(50), default="#1976d2")

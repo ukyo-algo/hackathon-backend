@@ -39,21 +39,28 @@ def draw_gacha(
     if not all_personas:
         raise HTTPException(status_code=500, detail="排出対象のキャラクターがいません")
 
-    # 重み付け: rarityが高いほど出にくい (例: rarity 1=100, 2=30, 3=10)
-    # 簡易実装: rarity 1=60%, 2=30%, 3=10%
-    weights = []
-    for p in all_personas:
-        if p.rarity == 1:
-            weights.append(60)
-        elif p.rarity == 2:
-            weights.append(30)
-        elif p.rarity == 3:
-            weights.append(10)
-        else:
-            weights.append(10)  # default
+    # --- GACHA_PROBABILITIESと同じ値をサーバー側にも定義 ---
+    GACHA_PROBABILITIES = {
+        1: 0.60,  # 60%
+        2: 0.20,  # 20%
+        3: 0.10,  # 10%
+        4: 0.07,  # 7%
+        5: 0.03,  # 3%
+    }
 
-    # 抽選実行
-    drawn_persona = random.choices(all_personas, weights=weights, k=1)[0]
+    # レアリティごとの候補リストを作成
+    rarity_to_personas = {}
+    for p in all_personas:
+        rarity_to_personas.setdefault(p.rarity, []).append(p)
+
+    # 確率リストとレアリティリストを作成
+    rarities = list(GACHA_PROBABILITIES.keys())
+    probabilities = [GACHA_PROBABILITIES[r] for r in rarities]
+
+    # まずレアリティを抽選
+    drawn_rarity = random.choices(rarities, weights=probabilities, k=1)[0]
+    # そのレアリティの中からランダムに1つ選ぶ
+    drawn_persona = random.choice(rarity_to_personas[drawn_rarity])
 
     # 3. ユーザーへの付与処理
     user_persona = (
