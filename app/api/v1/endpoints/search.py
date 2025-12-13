@@ -4,6 +4,7 @@ LLMを使用した意味的な商品検索機能を提供
 """
 
 from fastapi import APIRouter, Query, Depends
+import traceback
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -35,13 +36,16 @@ async def search_items(
     """
 
     # 全商品を取得
+    print(f"[search] start query={query}")
     all_items = db.query(Item).filter(Item.status == "on_sale").all()
+    print(f"[search] fetched on_sale items count={len(all_items)}")
 
     if not all_items:
         return []
 
     # LLMサービスインスタンスを取得
     llm_svc = get_llm_service(db)
+    print("[search] llm service acquired")
 
     # LLMに検索クエリの意図を解析させて、関連商品を絞る
     search_prompt = f"""
@@ -61,8 +65,11 @@ async def search_items(
     """
 
     try:
+        print("[search] calling llm_svc.get_response")
         response = await llm_svc.get_response(search_prompt)
+        print(f"[search] llm response len={len(response)} sample={response[:100]!r}")
         item_ids = _parse_item_ids(response, all_items)
+        print(f"[search] parsed item_ids count={len(item_ids)} ids={item_ids}")
 
         # IDに基づいて商品を返す
         # 順序を維持するために、IDリストの順に取得するか、取得後に並べ替える
@@ -71,6 +78,7 @@ async def search_items(
             return []
 
         results = db.query(Item).filter(Item.item_id.in_(item_ids)).all()
+        print(f"[search] db fetch by ids count={len(results)}")
 
         # SearchItemResponseに合わせて必要フィールドを整形
         response_items: List[SearchItemResponse] = []
@@ -88,12 +96,17 @@ async def search_items(
                 )
             )
 
+        print(f"[search] response_items built count={len(response_items)}")
         return response_items
 
     except Exception as e:
-        print(f"Search Error: {e}")
+        print(f"[search] Exception in LLM or building response: {e}")
+        traceback.print_exc()
         # LLM失敗時は、シンプルなテキスト検索にフォールバック
-        return _fallback_search(all_items, query)
+        print("[search] entering fallback search")
+        fallback = _fallback_search(all_items, query)
+        print(f"[search] fallback results count={len(fallback)}")
+        return fallback
 
 
 def _format_items_for_llm(items: List[Item]) -> str:
@@ -102,7 +115,7 @@ def _format_items_for_llm(items: List[Item]) -> str:
     for item in items[:50]:  # 最大50商品に制限してトークン消費を抑える
         formatted.append(
             f"ID: {item.item_id}, 名前: {item.name}, "
-            f"カテゴリ: {item.category}, 説明: {item.description[:100]}"
+            f"カテゴリ: {item.category}, 説明: {(item.description or '')[:100]}"
         )
     return "\n".join(formatted)
 
@@ -125,18 +138,27 @@ def _parse_item_ids(response: str, all_items: List[Item]) -> List[int]:
     return item_ids
 
 
-def _fallback_search(items: List[Item], query: str) -> List[Item]:
-    """LLM失敗時のフォールバック: シンプルテキスト検索"""
+def _fallback_search(items: List[Item], query: str) -> List[SearchItemResponse]:
     query_lower = query.lower()
-    results = []
+    results: List[SearchItemResponse] = []
 
     for item in items:
-        # 名前、説明、カテゴリで検索
-        if (
-            query_lower in item.name.lower()
-            or query_lower in item.description.lower()
-            or query_lower in item.category.lower()
-        ):
-            results.append(item)
+        name_ok = query_lower in (item.name or "").lower()
+        desc_ok = query_lower in (item.description or "").lower()
+        cat_ok = query_lower in (item.category or "").lower()
+
+        if name_ok or desc_ok or cat_ok:
+            results.append(
+                SearchItemResponse(
+                    item_id=item.item_id,
+                    name=item.name,
+                    price=item.price,
+                    image_url=item.image_url,
+                    category=item.category,
+                    seller=item.seller,  # validatorで {"username": "..."} に整形
+                    like_count=getattr(item, "like_count", 0),
+                    comment_count=getattr(item, "comments_count", 0),
+                )
+            )
 
     return results
