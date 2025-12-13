@@ -41,6 +41,7 @@ def startup_event():
 
 
 # --- CORS設定 ---
+# CORS設定: 本番・開発・Vercelプレビューを許可
 origins = [
     "https://hackathon-frontend-theta.vercel.app",
     "http://localhost:3000",
@@ -49,6 +50,8 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    # Vercel のプレビュードメイン (ブランチ/デプロイID付き) を広く許可
+    allow_origin_regex=r"https://hackathon-frontend-theta[.-].*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
