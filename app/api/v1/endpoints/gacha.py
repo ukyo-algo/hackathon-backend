@@ -91,11 +91,20 @@ def draw_gacha(
 
     db.commit()
 
-    # persona情報をdict化し、rarity_nameを追加
-    persona_dict = drawn_persona.__dict__.copy()
+    # persona情報をPydanticモデルで返す（rarity_nameを追加）
+    from app.schemas.user import PersonaBase
 
+    persona_out = PersonaBase(
+        id=drawn_persona.id,
+        name=drawn_persona.name,
+        avatar_url=drawn_persona.avatar_url,
+        description=drawn_persona.description,
+        theme_color=drawn_persona.theme_color,
+        rarity=drawn_persona.rarity,
+        rarity_name=RARITY_LABELS.get(drawn_persona.rarity, ""),
+    )
     return {
-        "persona": persona_dict,
+        "persona": persona_out,
         "is_new": is_new,
         "stack_count": stack_count,
         "message": message,

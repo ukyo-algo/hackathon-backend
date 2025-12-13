@@ -8,6 +8,8 @@ class PersonaBase(BaseModel):
     avatar_url: Optional[str] = None
     description: Optional[str] = None
     theme_color: Optional[str] = "#1976d2"
+    rarity: Optional[int] = None
+    rarity_name: Optional[str] = None
 
     class Config:
         from_attributes = True
