@@ -50,8 +50,6 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    # Vercel のプレビュードメイン (ブランチ/デプロイID付き) を広く許可
-    allow_origin_regex=r"https://hackathon-frontend-theta[.-].*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
