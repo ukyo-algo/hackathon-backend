@@ -72,8 +72,23 @@ async def search_items(
 
         results = db.query(Item).filter(Item.item_id.in_(item_ids)).all()
 
-        # PydanticがORMオブジェクトから変換してくれるので、そのまま返す
-        return results
+        # SearchItemResponseに合わせて必要フィールドを整形
+        response_items: List[SearchItemResponse] = []
+        for it in results:
+            response_items.append(
+                SearchItemResponse(
+                    item_id=it.item_id,
+                    name=it.name,
+                    price=it.price,
+                    image_url=it.image_url,
+                    category=it.category,
+                    seller=it.seller,  # validatorでusernameに整形
+                    like_count=getattr(it, "like_count", 0),
+                    comment_count=getattr(it, "comments_count", 0),
+                )
+            )
+
+        return response_items
 
     except Exception as e:
         print(f"Search Error: {e}")
