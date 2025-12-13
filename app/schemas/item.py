@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from .user import UserBase  # UserBaseをインポート
 from typing import List
 from .comment import Comment
@@ -57,3 +57,30 @@ class ItemCreate(BaseModel):
 
     # その他 (デフォルト値設定)
     is_instant_buy_ok: bool = True
+
+
+class SearchItemResponse(BaseModel):
+    """検索結果の商品情報"""
+
+    item_id: str
+    name: str
+    price: int
+    image_url: str | None
+    category: str
+    seller: dict  # {"username": str}
+    like_count: int
+    comment_count: int
+
+    @field_validator("seller", mode="before")
+    @classmethod
+    def format_seller(cls, v):
+        # ORMオブジェクト(User)が渡された場合、辞書に変換
+        if hasattr(v, "username"):
+            return {"username": v.username}
+        # Noneの場合など
+        if v is None:
+            return {"username": "不明"}
+        return v
+
+    class Config:
+        from_attributes = True

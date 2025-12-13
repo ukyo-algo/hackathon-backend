@@ -9,6 +9,7 @@ from typing import List
 
 from app.db.database import SessionLocal
 from app.db.models import Item
+from app.schemas.item import SearchItemResponse
 from app.services.llm_service import get_llm_service
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -22,7 +23,7 @@ def get_db():
         db.close()
 
 
-@router.get("/items")
+@router.get("/items", response_model=List[SearchItemResponse])
 async def search_items(
     query: str = Query(..., min_length=1, max_length=100), db: Session = Depends(get_db)
 ):
@@ -64,9 +65,15 @@ async def search_items(
         item_ids = _parse_item_ids(response, all_items)
 
         # IDに基づいて商品を返す
-        results = [item for item in all_items if item.item_id in item_ids]
+        # 順序を維持するために、IDリストの順に取得するか、取得後に並べ替える
+        # ここでは簡易的に IN 句で取得 (順序は保証されないが、検索結果としては許容)
+        if not item_ids:
+            return []
 
-        return [_format_item_response(item) for item in results]
+        results = db.query(Item).filter(Item.item_id.in_(item_ids)).all()
+
+        # PydanticがORMオブジェクトから変換してくれるので、そのまま返す
+        return results
 
     except Exception as e:
         print(f"Search Error: {e}")
@@ -87,12 +94,14 @@ def _format_items_for_llm(items: List[Item]) -> str:
 
 def _parse_item_ids(response: str, all_items: List[Item]) -> List[int]:
     """LLMの応答からアイテムIDを抽出"""
+    # item_id は String なので注意
     valid_ids = {item.item_id for item in all_items}
     item_ids = []
 
     for line in response.strip().split("\n"):
         try:
-            item_id = int(line.strip())
+            # 文字列として扱う
+            item_id = line.strip()
             if item_id in valid_ids:
                 item_ids.append(item_id)
         except (ValueError, AttributeError):
@@ -101,7 +110,7 @@ def _parse_item_ids(response: str, all_items: List[Item]) -> List[int]:
     return item_ids
 
 
-def _fallback_search(items: List[Item], query: str) -> List[dict]:
+def _fallback_search(items: List[Item], query: str) -> List[Item]:
     """LLM失敗時のフォールバック: シンプルテキスト検索"""
     query_lower = query.lower()
     results = []
@@ -113,18 +122,6 @@ def _fallback_search(items: List[Item], query: str) -> List[dict]:
             or query_lower in item.description.lower()
             or query_lower in item.category.lower()
         ):
-            results.append(_format_item_response(item))
+            results.append(item)
 
     return results
-
-
-def _format_item_response(item: Item) -> dict:
-    """商品情報をレスポンス用にフォーマット"""
-    return {
-        "item_id": item.item_id,
-        "name": item.name,
-        "price": item.price,
-        "image_url": item.image_url,
-        "category": item.category,
-        "seller": {"username": item.seller.username if item.seller else "不明"},
-    }

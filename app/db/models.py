@@ -20,14 +20,14 @@ class UserPersona(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     persona_id = Column(Integer, ForeignKey("agent_personas.id"), primary_key=True)
-    
+
     # 重複入手数（クラロワ方式）
     stack_count = Column(Integer, default=1)
     # レベル（将来用）
     level = Column(Integer, default=1)
     # 経験値（将来用）
     exp = Column(Integer, default=0)
-    
+
     obtained_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # リレーション
@@ -63,10 +63,10 @@ class User(Base):
 
     # キャラクター関連
     current_persona = relationship("AgentPersona", foreign_keys=[current_persona_id])
-    
+
     # 中間テーブルへのリレーション
     owned_personas_association = relationship("UserPersona", back_populates="user")
-    
+
     # 便利なショートカット（直接Personaオブジェクトにアクセスしたい場合用）
     # ※ association_proxy を使うとよりスマートですが、今回はプロパティで簡易実装するか、
     #   ロジック側で owned_personas_association を経由するように修正します。
@@ -105,6 +105,16 @@ class Item(Base):
     transaction = relationship("Transaction", back_populates="item", uselist=False)
     likes = relationship("Like", back_populates="item")
     comments = relationship("Comment", back_populates="item")
+
+    @property
+    def like_count(self) -> int:
+        """この商品に付いたいいねの数を返す"""
+        return len(self.likes)
+
+    @property
+    def comments_count(self):
+        """この商品に付いたコメントの数を返す"""
+        return len(self.comments)
 
 
 # --- 3. Transaction Model (取引) ---
