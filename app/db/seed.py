@@ -36,81 +36,15 @@ except ImportError as e:
     # 直接実行で失敗しないようexitする
     sys.exit(1)
 
+from app.db.data.image_urls import UNSPLASH_IMAGE_URLS
 
-# デモ画像を配信するフロントエンドのベースURL
-# フロントエンドの別ドメインから画像を参照する場合に備え、絶対URLを保存する
-FRONTEND_URL = os.getenv(
-    "FRONTEND_URL",
-    "http://localhost:3000",
-).rstrip("/")
-
-
-# --- ヘルパー関数 ---
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+print(f"Using FRONTEND_URL: {FRONTEND_URL}")
 
 
 def _get_product_image_url(category: str) -> str:
     """カテゴリに応じてUnsplashの画像URLを返す"""
-
-    image_map = {
-        "家電・スマホ・カメラ": [
-            (
-                "https://images.unsplash.com/photo-1505740420928-"
-                "5e560c06d30e?w=400&h=300&fit=crop"
-            ),  # ヘッドフォン
-            (
-                "https://images.unsplash.com/photo-1484704849700-"
-                "f032a568e944?w=400&h=300&fit=crop"
-            ),  # iPhone
-            (
-                "https://images.unsplash.com/photo-1612198188060-"
-                "c7ebbffbc4d7?w=400&h=300&fit=crop"
-            ),  # カメラ
-        ],
-        "靴": [
-            (
-                "https://images.unsplash.com/photo-1542291026-"
-                "7eec264c27ff?w=400&h=300&fit=crop"
-            ),  # スニーカー
-            (
-                "https://images.unsplash.com/photo-1460353581641-"
-                "37baddab0fa2?w=400&h=300&fit=crop"
-            ),  # 靴
-        ],
-        "ファッション": [
-            (
-                "https://images.unsplash.com/photo-1594938298603-"
-                "c8148c4dae35?w=400&h=300&fit=crop"
-            ),  # コート
-            (
-                "https://images.unsplash.com/photo-1556821552-"
-                "5f6c82f6e6c1?w=400&h=300&fit=crop"
-            ),  # パーカー
-            (
-                "https://images.unsplash.com/photo-1548036328-"
-                "c9fa89d128fa?w=400&h=300&fit=crop"
-            ),  # バッグ
-        ],
-        "PC周辺機器": [
-            (
-                "https://images.unsplash.com/photo-1587829191301-"
-                "dc798b83add3?w=400&h=300&fit=crop"
-            ),  # マウス
-            (
-                "https://images.unsplash.com/photo-1587829191351-"
-                "b8f3a8c4da5e?w=400&h=300&fit=crop"
-            ),  # キーボード
-        ],
-    }
-
-    urls = image_map.get(
-        category,
-        [
-            (
-                "https://images.unsplash.com/photo-1492684223066-"
-                "81342ee5ff30?w=400&h=300&fit=crop"
-            ),
-        ],
-    )
+    urls = UNSPLASH_IMAGE_URLS.get(category, UNSPLASH_IMAGE_URLS["デフォルト"])
     return random.choice(urls)
 
 
