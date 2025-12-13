@@ -56,8 +56,8 @@ def get_item(item_id: str, db: Session = Depends(get_db)):
     )
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Item not found")
-    item.like_count = len(item.likes)  # models.Itemにlikesリレーションがあれば動作
-
+    # like_count は models.Item のプロパティで計算されるため、代入は不要
+    # コメントも同様にプロパティ経由で参照可能
     return item
 
 
