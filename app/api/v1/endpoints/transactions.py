@@ -13,6 +13,44 @@ from app.api.v1.endpoints.users import get_current_user
 router = APIRouter()
 
 
+@router.get(
+    "",
+    response_model=list[transaction_schema.Transaction],
+    summary="取引一覧（ロール・ステータスでフィルタ）",
+)
+def list_transactions(
+    role: str,  # 'seller' | 'buyer'
+    status: str | None = None,  # 'pending_shipment' | 'in_transit' | 'completed' | None
+    limit: int = 10,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    q = db.query(models.Transaction).options(joinedload(models.Transaction.item))
+
+    if role == "seller":
+        q = q.join(
+            models.Item, models.Transaction.item_id == models.Item.item_id
+        ).filter(models.Item.seller_id == current_user.firebase_uid)
+    elif role == "buyer":
+        q = q.filter(models.Transaction.buyer_id == current_user.firebase_uid)
+    else:
+        raise HTTPException(
+            status_code=400, detail="roleは'seller'または'buyer'を指定してください"
+        )
+
+    if status:
+        q = q.filter(models.Transaction.status == status)
+
+    txs = (
+        q.order_by(models.Transaction.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return txs
+
+
 @router.post(
     "/{transaction_id}/ship",
     response_model=transaction_schema.Transaction,
