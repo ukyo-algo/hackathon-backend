@@ -129,6 +129,10 @@ class Transaction(Base):
     item_id = Column(String(255), ForeignKey("items.item_id"))
     buyer_id = Column(String(255), ForeignKey("users.firebase_uid"))
     price = Column(Integer)  # 取引成立時の価格
+    # 進行ステータス（最小3種）
+    status = Column(String(32), default="pending_shipment")
+    shipped_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

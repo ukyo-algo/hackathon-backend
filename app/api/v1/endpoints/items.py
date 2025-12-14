@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql import func
 from typing import List
 
 from app.db.database import get_db
@@ -125,9 +126,12 @@ def buy_item(
     # 3. ステータス更新
     item.status = "sold"
 
-    # 4. トランザクション作成
+    # 4. トランザクション作成（初期ステータス: 発送待ち）
     transaction = models.Transaction(
-        item_id=item.item_id, buyer_id=current_user.firebase_uid, price=item.price
+        item_id=item.item_id,
+        buyer_id=current_user.firebase_uid,
+        price=item.price,
+        status="pending_shipment",
     )
 
     db.add(transaction)
