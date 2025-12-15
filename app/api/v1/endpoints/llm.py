@@ -6,6 +6,8 @@ from app.db.database import get_db
 from app.db import models
 from app.services.llm_service import get_llm_service
 
+import re
+
 router = APIRouter()
 
 
@@ -23,10 +25,54 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="path is required")
 
     q_info = f"?{query}" if query else ""
+    print(f"[llm/context] uid={uid} path={path}{q_info}")
+    # --- 追加: ユーザー・DB・クエリ情報をプロンプトに反映 ---
+    user = (
+        db.query(models.User).filter(models.User.firebase_uid == uid).first()
+        if uid
+        else None
+    )
+    recent_items = []
+    if user:
+        recent_items = (
+            db.query(models.Item)
+            .filter(models.Item.seller_id == user.id)
+            .order_by(models.Item.created_at.desc())
+            .limit(3)
+            .all()
+        )
+    search_word = None
+    if "q=" in query:
+        search_word = query.split("q=")[-1]
+    item_id = None
+    item_detail = None
+    # パスが /items/{item_id} 形式なら item_id を抽出
+    m = re.match(r"^/items/([^/?]+)", path or "")
+    if m:
+        item_id = m.group(1)
+
+    if item_id:
+        item_detail = (
+            db.query(models.Item).filter(models.Item.item_id == item_id).first()
+        )
+
+    context_info = ""
+    if user:
+        context_info += f"ユーザー名: {user.username}。"
+    if search_word:
+        context_info += f"現在「{search_word}」で検索中。"
+    if item_detail:
+        context_info += f"閲覧中アイテム: {item_detail.name}（{item_detail.category}）"
+    if recent_items:
+        context_info += f"最近の出品: {', '.join([it.name for it in recent_items])}。"
+
     prompt = (
+        f"{context_info} "
         f"ユーザーがページ『{path}{q_info}』を開きました。"
         "このページの目的と、ユーザーが次に取るべき具体的な一歩を日本語で1文、親切に提案してください。"
+        "回答は丁寧な口調で行い、ペルソナの特徴を反映してください。"
     )
+    print("prompt", prompt)
 
     llm_svc = get_llm_service(db)
     try:
