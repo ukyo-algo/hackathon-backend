@@ -76,7 +76,7 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 
     llm_svc = get_llm_service(db)
     try:
-        result = llm_svc.chat_with_persona(user_id=uid or "", message=prompt)
+        result = llm_svc.chat_with_persona(user_id=uid or "", current_chat=prompt)
         reply = result.get("reply")
         persona = result.get("persona")
         if reply:

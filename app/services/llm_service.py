@@ -1,6 +1,7 @@
 # hackathon-backend/app/services/llm_service.py
 
 import json
+from pathlib import Path
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
@@ -17,6 +18,21 @@ from app.db import models
 # --- LLM クライアントの定義 ---
 # グローバル変数としてクライアントを保持
 client = None
+WEB_INFO = None
+
+
+def _load_web_info():
+    """app/web_info/web_info.json を読み込む（存在しなければ None）"""
+    try:
+        base = Path(__file__).resolve().parent.parent  # app/
+        p = base / "web_info" / "web_info.json"
+        if not p.exists():
+            return None
+        with p.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ WEB_INFO load failed: {e}")
+        return None
 
 
 def get_gemini_client():
@@ -72,69 +88,57 @@ class LLMService:
     def __init__(self, db: Session):
         self.db = db
         self.model_name = settings.GEMINI_MODEL
-        # クライアント初期化処理を関数に委譲
         self.client = get_gemini_client()
-
-        # 循環参照を避けるため、ItemServiceのインポートとインスタンス化を遅延させる
+        global WEB_INFO
+        if WEB_INFO is None:
+            WEB_INFO = _load_web_info()
         self.item_service = self.get_item_service()
+        # --- ここを追加: 履歴一元管理 ---
+        self.history: List[dict] = []
 
-    def get_item_service(self):
-        # 現状ではItemServiceを定義していないため、ここではダミー関数やサービスを返す
-        class DummyItemService:
-            def get_popular_item(self_dummy):
-                # importしたmodelsを使用
-                return (
-                    self.db.query(models.Item)
-                    .order_by(models.Item.created_at.desc())
-                    .first()
-                )
+    def append_history(self, entry: dict):
+        """履歴にエントリを追加"""
+        self.history.append(entry)
+        # 必要なら履歴長制限もここで実装
 
-            def get_random_item(self_dummy):
-                # ランダム取得のロジック（簡易実装）
-                return self.db.query(models.Item).first()
+    def reset_history(self):
+        """履歴をリセット"""
+        self.history = []
 
-        # データベースセッションを利用するために、DummyItemServiceのインスタンスを返す
-        return DummyItemService()
-
-    # ----------------------------------------------
-    # 1. LLM対話機能のコア (キャラクターなりきり)
-    # ----------------------------------------------
     def chat_with_persona(
         self,
         user_id: str,
-        message: str,
-        history: List[dict] = None,
+        current_chat: str,
+        history: List[dict] = None,  # 外部履歴は受け取るが使用しない（LLMServiceで一元管理）
     ) -> dict:
-        """ユーザーの設定中のペルソナになりきって返信する（チャット履歴対応）"""
-        # クライアントが利用可能かチェック
-        if not self.client:
-            # オフライン時の親切なフォールバック応答
-            return {
-                "reply": (
-                    "今はAI接続が不安定なようです。よろしければ、探している商品や"
-                    "ご予算・用途を教えてください。私からも候補や相場の目安をご提案します。"
-                ),
-                "persona": {
-                    "name": "ガイド",
-                    "avatar_url": "/avatars/default.png",
-                    "theme": "default",
-                },
-            }
-
-        # 1. ユーザーと現在セット中のキャラを取得
-        user = (
-            self.db.query(models.User)
-            .filter(models.User.firebase_uid == user_id)
-            .first()
+        # ユーザーと現在セット中のキャラを取得し、system_instructionとpersona_infoを準備
+        current_persona = None
+        persona_info = {
+            "name": "AIアシスタント",
+            "avatar_url": "/avatars/default.png",
+            "theme": "default",
+        }
+        system_instruction = (
+            "あなたは親切なAIアシスタントです。優しくサポートしてください。"
         )
 
-        current_persona = None
+        try:
+            user = (
+                (
+                    self.db.query(models.User)
+                    .filter(models.User.firebase_uid == user_id)
+                    .first()
+                )
+                if user_id
+                else None
+            )
+        except Exception:
+            user = None
 
-        # 2. キャラ設定の取得とフォールバック処理
         if user and user.current_persona:
             current_persona = user.current_persona
         elif user:
-            # current_persona_id が未設定だが、所持ペルソナがある場合は先頭を自動セット
+            # 所持ペルソナの先頭を自動セット、なければデフォルト(1)
             first_owned = (
                 self.db.query(models.AgentPersona)
                 .join(
@@ -150,7 +154,6 @@ class LLMService:
                 self.db.refresh(user)
                 current_persona = first_owned
             else:
-                # 所持なしの場合はデフォルト(1)をセット
                 default_persona = (
                     self.db.query(models.AgentPersona)
                     .filter(models.AgentPersona.id == 1)
@@ -162,7 +165,7 @@ class LLMService:
                     self.db.refresh(user)
                     current_persona = default_persona
         else:
-            # ユーザーが見つからない場合のフォールバック
+            # ユーザー不在時もデフォルトを試みる
             default_persona = (
                 self.db.query(models.AgentPersona)
                 .filter(models.AgentPersona.id == 1)
@@ -171,74 +174,103 @@ class LLMService:
             if default_persona:
                 current_persona = default_persona
 
-        # 3. プロンプトと情報の構築
         if current_persona:
-            system_instruction = current_persona.system_prompt
+            system_instruction = current_persona.system_prompt or system_instruction
             persona_info = {
                 "name": current_persona.name,
                 "avatar_url": current_persona.avatar_url,
                 "theme": current_persona.theme_color,
             }
-        else:
-            # 最終防衛ライン
-            system_instruction = (
-                "あなたは親切なAIアシスタントです。優しくサポートしてください。"
-            )
-            persona_info = {
-                "name": "AIアシスタント",
-                "avatar_url": "/avatars/default.png",
-                "theme": "default",
-            }
 
-        # 4. Geminiへの設定
+        if WEB_INFO and isinstance(WEB_INFO, dict):
+            try:
+                routes = WEB_INFO.get("routes", [])
+                notes = WEB_INFO.get("guidance", {}).get("notes", [])
+                lines = [
+                    "[WEB_INFO] アプリの主要ページと用途の要点:",
+                ]
+                for r in routes:
+                    path = r.get("path")
+                    name = r.get("name")
+                    purpose = r.get("purpose")
+                    if path and name:
+                        lines.append(f"- {name} ({path}): {purpose}")
+                if notes:
+                    lines.append("[NOTES]")
+                    for n in notes:
+                        lines.append(f"- {n}")
+                web_info_text = "\n".join(lines)
+                # --- 指示文を削除し、情報のみ付与 ---
+                system_instruction = f"{system_instruction}\n\n{web_info_text}\n\n"
+            except Exception as e:
+                print(f"⚠️ WEB_INFO build failed: {e}")
+
+        # --- 履歴一元管理: self.historyのみを使用 ---
+        # 外部からのhistoryは無視し、サービス内のself.historyだけで文脈を構築する
+        # guidance(system/type)も含めてsystem_instructionに反映
+        last_guidance = None
+        for h in reversed(self.history):
+            if (
+                h.get("role") == "system"
+                and h.get("type") == "guidance"
+                and h.get("content")
+            ):
+                last_guidance = h.get("content")
+                break
+        if last_guidance:
+            system_instruction = (
+                f"{system_instruction}\n\n[PAGE CONTEXT]\n{last_guidance}"
+            )
+
+        # Geminiへの設定
         config = types.GenerateContentConfig(
             system_instruction=system_instruction,
             temperature=0.7,
         )
 
         try:
-            # 5. チャット履歴と現在のメッセージを合成
             contents = []
-
-            # 過去の履歴があれば追加（role: user/ai → user/model に変換）
-            if history:
-                for h in history:
-                    role = h.get("role", "user")
-                    content = h.get("content", "")
-                    # AIガイダンス系や type がある場合はスキップ
-                    if h.get("type") == "guidance" or not content:
-                        continue
-                    # API形式に変換（user/model）
-                    if role == "ai":
-                        contents.append(
-                            types.Content(
-                                role="model",
-                                parts=[types.Part(text=content)],
-                            )
+            # self.historyをもとに会話履歴を構築
+            for h in self.history:
+                role = h.get("role", "user")
+                content = h.get("content", "")
+                if h.get("type") == "guidance" or not content:
+                    contents.append(
+                        types.Content(
+                            role="model",
+                            parts=[types.Part(text=content)],
                         )
-                    else:
-                        contents.append(
-                            types.Content(
-                                role="user",
-                                parts=[types.Part(text=content)],
-                            )
+                    )
+                elif role == "ai":
+                    contents.append(
+                        types.Content(
+                            role="model",
+                            parts=[types.Part(text=content)],
                         )
-
-            # 現在のメッセージを追加
+                    )
+                else:
+                    contents.append(
+                        types.Content(
+                            role="user",
+                            parts=[types.Part(text=content)],
+                        )
+                    )
+            # 今回のメッセージは履歴にはまだ追加せず、生成にのみ使用
             contents.append(
                 types.Content(
                     role="user",
-                    parts=[types.Part(text=message)],
+                    parts=[types.Part(text=current_chat)],
                 )
             )
 
-            # 6. Geminiにメッセージを送信（履歴付き）
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=contents,
                 config=config,
             )
-
+            # 生成後に今回の発話とAI応答を履歴へ追加
+            self.append_history({"role": "user", "content": current_chat})
+            self.append_history({"role": "ai", "content": response.text})
             return {"reply": response.text, "persona": persona_info}
 
         except APIError as e:

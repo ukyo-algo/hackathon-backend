@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from app.schemas.gacha import GachaResponse
 import random
 
 from app.db.database import get_db
@@ -13,11 +13,7 @@ from app.schemas import user as user_schema
 router = APIRouter()
 
 
-class GachaResponse(BaseModel):
-    persona: user_schema.PersonaBase
-    is_new: bool
-    stack_count: int
-    message: str
+"""Pydanticスキーマはapp/schemas/gacha.pyへ移動"""
 
 
 @router.post("/draw", response_model=GachaResponse)

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from app.schemas.chat import ChatRequest, ChatResponse
 
 from app.db.database import get_db
 from app.api.v1.endpoints.users import get_current_user
@@ -12,16 +12,7 @@ from app.services.llm_service import LLMService
 router = APIRouter()
 
 
-# リクエストボディの定義
-class ChatRequest(BaseModel):
-    message: str
-    history: list = None  # チャット履歴（オプション）
-
-
-# レスポンスの定義
-class ChatResponse(BaseModel):
-    reply: str
-    persona: dict
+"""Pydanticスキーマはapp/schemas/chat.pyへ移動"""
 
 
 @router.post("", response_model=ChatResponse)
@@ -38,8 +29,8 @@ def chat_with_agent(
     # チャット履歴（オプション）をサービス層に渡す
     result = service.chat_with_persona(
         current_user.firebase_uid,
-        chat_in.message,
-        history=chat_in.history or [],
+        current_chat=chat_in.message,
+        history=None,  # LLMService側で履歴を一元管理
     )
 
     return result

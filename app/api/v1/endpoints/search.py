@@ -67,8 +67,8 @@ async def search_items(
     try:
         print("[search] calling llm_svc.chat_with_persona")
         # chat_with_personaは同期関数なのでawait不要
-        chat_result = llm_svc.chat_with_persona(
-            user_id=None, message=search_prompt, history=None  # 検索時はユーザーID不要
+            chat_result = llm_svc.chat_with_persona(
+                user_id=None, current_chat=search_prompt, history=None  # 検索時はユーザーID不要
         )
         response = chat_result["reply"]
         print(f"[search] llm response len={len(response)} sample={response[:100]!r}")
