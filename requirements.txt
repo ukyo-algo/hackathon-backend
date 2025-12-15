@@ -9,4 +9,5 @@ email-validator
 scikit-learn
 janome
 google-genai
+google-auth
 requests

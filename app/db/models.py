@@ -199,3 +199,23 @@ class AgentPersona(Base):
     # ↑ 中間テーブルをクラス化したため、直接のMany-to-Manyリレーションは定義しづらい
     # 必要なら association_proxy を使うが、今回は逆参照はあまり使わないのでコメントアウトか削除
     pass
+
+
+# --- 7. ChatMessage Model (ユーザー別チャット履歴) ---
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # 多くの既存FKと整合させるため firebase_uid を参照
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), index=True)
+    role = Column(String(16))  # 'user' | 'ai' | 'system'
+    type = Column(String(16), nullable=True)  # 'chat' | 'guidance' | None
+    content = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # リレーション
+    user = relationship("User", back_populates="chat_messages")
+
+
+# User へ逆参照を追加
+User.chat_messages = relationship("ChatMessage", back_populates="user")

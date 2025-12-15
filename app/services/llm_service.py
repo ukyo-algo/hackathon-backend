@@ -93,23 +93,63 @@ class LLMService:
         if WEB_INFO is None:
             WEB_INFO = _load_web_info()
         self.item_service = self.get_item_service()
-        # --- ここを追加: 履歴一元管理 ---
-        self.history: List[dict] = []
 
+    # --- DB永続化: 履歴の読み書き ---
+    def _load_history(self, user_id: str, limit: int = 50) -> List[dict]:
+        """ユーザーのチャット/ガイダンス履歴を古い順で最大limit件取得"""
+        if not user_id:
+            return []
+        try:
+            rows = (
+                self.db.query(models.ChatMessage)
+                .filter(models.ChatMessage.user_id == user_id)
+                .order_by(models.ChatMessage.created_at.asc())
+                .limit(limit)
+                .all()
+            )
+            return [
+                {"role": r.role, "type": r.type, "content": r.content or ""}
+                for r in rows
+            ]
+        except Exception as e:
+            print(f"⚠️ load history failed: {e}")
+            return []
+
+    def _save_message(
+        self, user_id: str, role: str, content: str, mtype: str | None = None
+    ) -> None:
+        if not user_id:
+            return
+        try:
+            msg = models.ChatMessage(
+                user_id=user_id, role=role, type=mtype, content=content
+            )
+            self.db.add(msg)
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            print(f"⚠️ save message failed: {e}")
+
+    def add_guidance(self, user_id: str, content: str) -> None:
+        """ページ遷移等のガイダンスをsystem/guidanceとして保存"""
+        self._save_message(
+            user_id=user_id, role="system", content=content, mtype="guidance"
+        )
+
+    # 互換: 以前のメモリ履歴APIはダミー化
     def append_history(self, entry: dict):
-        """履歴にエントリを追加"""
-        self.history.append(entry)
-        # 必要なら履歴長制限もここで実装
+        pass
 
     def reset_history(self):
-        """履歴をリセット"""
-        self.history = []
+        pass
 
     def chat_with_persona(
         self,
         user_id: str,
         current_chat: str,
-        history: List[dict] = None,  # 外部履歴は受け取るが使用しない（LLMServiceで一元管理）
+        history: List[
+            dict
+        ] = None,  # 外部履歴は受け取るが使用しない（LLMServiceで一元管理）
     ) -> dict:
         # ユーザーと現在セット中のキャラを取得し、system_instructionとpersona_infoを準備
         current_persona = None
@@ -205,11 +245,11 @@ class LLMService:
             except Exception as e:
                 print(f"⚠️ WEB_INFO build failed: {e}")
 
-        # --- 履歴一元管理: self.historyのみを使用 ---
-        # 外部からのhistoryは無視し、サービス内のself.historyだけで文脈を構築する
+        # --- 履歴: DBから読み込み（ユーザー別） ---
+        history_rows = self._load_history(user_id=user_id, limit=200)
         # guidance(system/type)も含めてsystem_instructionに反映
         last_guidance = None
-        for h in reversed(self.history):
+        for h in reversed(history_rows):
             if (
                 h.get("role") == "system"
                 and h.get("type") == "guidance"
@@ -230,8 +270,8 @@ class LLMService:
 
         try:
             contents = []
-            # self.historyをもとに会話履歴を構築
-            for h in self.history:
+            # DB履歴をもとに会話履歴を構築
+            for h in history_rows:
                 role = h.get("role", "user")
                 content = h.get("content", "")
                 if h.get("type") == "guidance" or not content:
@@ -268,9 +308,13 @@ class LLMService:
                 contents=contents,
                 config=config,
             )
-            # 生成後に今回の発話とAI応答を履歴へ追加
-            self.append_history({"role": "user", "content": current_chat})
-            self.append_history({"role": "ai", "content": response.text})
+            # 生成後に今回の発話とAI応答をDB履歴へ追加
+            self._save_message(
+                user_id=user_id, role="user", content=current_chat, mtype="chat"
+            )
+            self._save_message(
+                user_id=user_id, role="ai", content=response.text, mtype="chat"
+            )
             return {"reply": response.text, "persona": persona_info}
 
         except APIError as e:

@@ -79,6 +79,12 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
         result = llm_svc.chat_with_persona(user_id=uid or "", current_chat=prompt)
         reply = result.get("reply")
         persona = result.get("persona")
+        # ガイダンスはsystem/guidanceとして履歴に保存（以後の会話で参照）
+        if uid:
+            try:
+                llm_svc.add_guidance(uid, prompt)
+            except Exception:
+                pass
         if reply:
             return {"message": reply, "persona": persona}
     except Exception:
