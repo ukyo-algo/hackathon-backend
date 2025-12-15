@@ -101,7 +101,6 @@ def create_initial_data(db: Session):
             firebase_uid=u_conf["uid"],
             username=u_conf["name"],
             email=u_conf["email"],
-            points=5000,
             current_persona_id=1,
         )
         db.add(user)
