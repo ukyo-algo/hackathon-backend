@@ -26,6 +26,7 @@ class UserBase(BaseModel):
     icon_url: str | None = None
     current_persona_id: int
     current_persona: Optional["PersonaBase"] = None
+    coins: int = 0
 
     # SQLAlchemyモデル（models.User）から
     # Pydanticモデル（UserBase）への自動変換を有効にする
@@ -40,4 +41,3 @@ class UserCreate(UserBase):
 
     # 作成時は current_persona_id は必須ではない（バックエンドで設定する）
     current_persona_id: Optional[int] = None
-    pass

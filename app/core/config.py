@@ -33,6 +33,15 @@ class Settings:
 
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    # Frontend/feature config knobs
+    # おすすめ関連の件数とクールダウン（分）を環境変数から設定可能に
+    RECOMMEND_ITEM_COUNT: int = int(os.getenv("RECOMMEND_ITEM_COUNT", "5"))
+    RECOMMEND_COOLDOWN_MINUTES: int = int(os.getenv("RECOMMEND_COOLDOWN_MINUTES", "60"))
+
+    # コイン報酬関連
+    REWARD_AMOUNT: int = int(os.getenv("REWARD_AMOUNT", "1000"))
+    REWARD_COOLDOWN_MINUTES: int = int(os.getenv("REWARD_COOLDOWN_MINUTES", "60"))
+
 
 # 設定インスタンスを作成してエクスポート
 settings = Settings()

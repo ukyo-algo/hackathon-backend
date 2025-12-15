@@ -11,7 +11,9 @@ from fastapi import HTTPException
 from google.oauth2 import service_account  # サービスアカウント認証用
 
 from app.core.config import settings
+import random
 from app.db import models
+from datetime import datetime, timedelta
 
 # from app.api.v1.endpoints.items import get_items  # 未使用のためコメントアウト
 
@@ -92,7 +94,34 @@ class LLMService:
         global WEB_INFO
         if WEB_INFO is None:
             WEB_INFO = _load_web_info()
-        self.item_service = self.get_item_service()
+        # item_serviceは未使用のため、内部ヘルパーで代替
+
+    # --- Item取得用の簡易ヘルパー ---
+    def _get_popular_item(self):
+        try:
+            # 直近の出品から1件（簡易人気枠）
+            return (
+                self.db.query(models.Item)
+                .filter(models.Item.status == "on_sale")
+                .order_by(models.Item.created_at.desc())
+                .first()
+            )
+        except Exception:
+            return None
+
+    def _get_random_item(self):
+        try:
+            items = (
+                self.db.query(models.Item)
+                .filter(models.Item.status == "on_sale")
+                .limit(50)
+                .all()
+            )
+            if not items:
+                return None
+            return random.choice(items)
+        except Exception:
+            return None
 
     # --- DB永続化: 履歴の読み書き ---
     def _load_history(self, user_id: str, limit: int = 50) -> List[dict]:
@@ -337,6 +366,162 @@ class LLMService:
             }
 
     # ----------------------------------------------
+    # おすすめ生成API: 履歴/キーワードモード（クールダウン判定はフロントで実施）
+    # ----------------------------------------------
+    def generate_recommendations(
+        self, user_id: str, mode: str, keyword: str | None = None
+    ) -> Dict[str, Any]:
+        """
+        - mode: "history" | "keyword"
+        - keyword: mode=="keyword"の時に使用
+        - 5件（設定値）のアイテムとペルソナ質問文を返す
+        """
+        persona_info = {
+            "name": "AIアシスタント",
+            "avatar_url": "/avatars/default.png",
+            "theme": "default",
+        }
+
+        # ペルソナ取得
+        try:
+            user = (
+                self.db.query(models.User)
+                .filter(models.User.firebase_uid == user_id)
+                .first()
+            )
+        except Exception:
+            user = None
+
+        if user and user.current_persona:
+            persona = user.current_persona
+            persona_info = {
+                "name": persona.name,
+                "avatar_url": persona.avatar_url,
+                "theme": persona.theme_color,
+            }
+
+        # アイテム候補を集める（簡易: 人気+ランダムから5件）
+        items = []
+        try:
+            item_count = getattr(settings, "RECOMMEND_ITEM_COUNT", 5)
+            base_q = (
+                self.db.query(models.Item)
+                .filter(models.Item.status == "on_sale")
+                .order_by(models.Item.created_at.desc())
+            )
+            # キーワードモードの場合、タイトル/説明のLIKEで粗く絞る
+            if mode == "keyword" and keyword:
+                like = f"%{keyword}%"
+                base_q = base_q.filter(
+                    (models.Item.title.ilike(like))
+                    | (models.Item.description.ilike(like))
+                )
+            candidates = base_q.limit(50).all()
+            # シャッフルして上位5件
+            random.shuffle(candidates)
+            for it in candidates[:item_count]:
+                items.append(
+                    {
+                        "id": it.id,
+                        "title": getattr(it, "title", ""),
+                        "price": getattr(it, "price", None),
+                        "image_url": getattr(it, "image_url", None),
+                    }
+                )
+        except Exception:
+            items = []
+
+        # ペルソナ質問文をLLMで生成（web_info + 直近ガイダンスを文脈に）
+        question_prompt = ""
+        try:
+            # system_instructionの再構成（chat_with_personaと同様）
+            system_instruction = (
+                "あなたは親切なAIアシスタントです。優しくサポートしてください。"
+            )
+            if user and user.current_persona:
+                system_instruction = (
+                    user.current_persona.system_prompt or system_instruction
+                )
+
+            if WEB_INFO and isinstance(WEB_INFO, dict):
+                routes = WEB_INFO.get("routes", [])
+                notes = WEB_INFO.get("guidance", {}).get("notes", [])
+                lines = ["[WEB_INFO] アプリの主要ページと用途の要点:"]
+                for r in routes:
+                    path = r.get("path")
+                    name = r.get("name")
+                    purpose = r.get("purpose")
+                    if path and name:
+                        lines.append(f"- {name} ({path}): {purpose}")
+                if notes:
+                    lines.append("[NOTES]")
+                    for n in notes:
+                        lines.append(f"- {n}")
+                web_info_text = "\n".join(lines)
+                system_instruction = f"{system_instruction}\n\n{web_info_text}\n\n"
+
+            # 直近ガイダンスを付与
+            history_rows = self._load_history(user_id=user_id, limit=200)
+            last_guidance = None
+            for h in reversed(history_rows):
+                if (
+                    h.get("role") == "system"
+                    and h.get("type") == "guidance"
+                    and h.get("content")
+                ):
+                    last_guidance = h.get("content")
+                    break
+            if last_guidance:
+                system_instruction = (
+                    f"{system_instruction}\n\n[PAGE CONTEXT]\n{last_guidance}"
+                )
+
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction, temperature=0.6
+            )
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part(
+                            text=(
+                                "ログイン直後のおすすめを提示する前の一言質問を生成してください。"
+                                "ユーザーが好みや条件を自然に答えやすい、1文の丁寧な日本語にしてください。"
+                                f"モード: {mode} / キーワード: {keyword or ''}"
+                            )
+                        )
+                    ],
+                )
+            ]
+            resp = self.client.models.generate_content(
+                model=self.model_name, contents=contents, config=config
+            )
+            question_prompt = (
+                resp.text or "今の気分や予算など、ざっくり希望を教えてください。"
+            )
+        except Exception:
+            question_prompt = "今の気分や予算など、ざっくり希望を教えてください。"
+
+        # 履歴にrecommendとして保存（制限判定用）
+        try:
+            self._save_message(
+                user_id=user_id,
+                role="system",
+                content=f"recommend:{mode}:{keyword or ''}",
+                mtype="recommend",
+            )
+        except Exception:
+            pass
+
+        return {
+            "can_recommend": True,
+            "persona_question": question_prompt,
+            "items": items,
+            "persona": persona_info,
+            "reason": None,
+        }
+
+    # ----------------------------------------------
     # 2. 出品説明文の自動生成 (Vision機能)
     # ----------------------------------------------
     async def generate_item_description(
@@ -431,7 +616,7 @@ class LLMService:
 
         # ユーザーとキャラが紐付いていない場合のフォールバック
         if not user or not user.current_persona:
-            item = self.item_service.get_popular_item()
+            item = self._get_popular_item()
             return {
                 "comment": "ようこそ！早速、人気のアイテムを見てみましょう！",
                 "item": item,
@@ -441,15 +626,13 @@ class LLMService:
 
         # 簡易的なロジック切り替え
         if "執事" in persona.name:
-            item = (
-                self.item_service.get_popular_item()
-            )  # ダミー: ここで高度なマッチングを呼ぶ
+            item = self._get_popular_item()  # ダミー: ここで高度なマッチングを呼ぶ
             comment = "本日は、ご主人様にふさわしい逸品をご紹介いたします。"
         elif "ギャル" in persona.name:
-            item = self.item_service.get_random_item()
+            item = self._get_random_item()
             comment = "マジでヤバいアイテム見つけたんだけど、見てみて！👀"
         else:  # ドット絵の青年
-            item = self.item_service.get_popular_item()
+            item = self._get_popular_item()
             comment = "おかえりなさい！今日は特に注目されている商品をご紹介しますね。"
 
         return {

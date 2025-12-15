@@ -46,8 +46,8 @@ class User(Base):
     email = Column(String(255))
     icon_url = Column(String(512), nullable=True)  # URLは長めにとる
 
-    # ガチャ用のポイント
-    points = Column(Integer, default=1000)
+    # ゲーム内通貨（コイン）: ガチャ・購入・報酬すべてこれで管理
+    coins = Column(Integer, default=1000)
 
     # 現在セットしているペルソナID
     current_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
@@ -219,3 +219,21 @@ class ChatMessage(Base):
 
 # User へ逆参照を追加
 User.chat_messages = relationship("ChatMessage", back_populates="user")
+
+
+# --- 8. RewardEvent Model (コイン入手台帳) ---
+class RewardEvent(Base):
+    __tablename__ = "reward_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), index=True)
+    kind = Column(String(64), index=True)  # 'hourly_claim' など、入手種別
+    amount = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # リレーション
+    user = relationship("User", back_populates="reward_events")
+
+
+# User へ逆参照を追加
+User.reward_events = relationship("RewardEvent", back_populates="user")

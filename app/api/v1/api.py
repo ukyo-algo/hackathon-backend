@@ -7,7 +7,8 @@ from .endpoints import (
     search,
     transactions,
     llm,
-    recommendations,
+    recommend,
+    rewards,
 )  # LLM/Reco追加
 
 api_router = APIRouter()
@@ -22,7 +23,12 @@ api_router.include_router(
 )  # 取引
 api_router.include_router(llm.router, prefix="/llm", tags=["LLM"])
 api_router.include_router(
-    recommendations.router,
-    prefix="/recommendations",
+    recommend.router,
+    prefix="/recommend",
     tags=["Recommendations"],
+)
+api_router.include_router(
+    rewards.router,
+    prefix="/rewards",
+    tags=["Rewards"],
 )
