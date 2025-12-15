@@ -422,10 +422,11 @@ class LLMService:
             for it in candidates[:item_count]:
                 items.append(
                     {
-                        "id": it.id,
-                        "title": getattr(it, "title", ""),
+                        "item_id": str(getattr(it, "item_id", it.id)),
+                        "name": getattr(it, "name", getattr(it, "title", "")),
                         "price": getattr(it, "price", None),
                         "image_url": getattr(it, "image_url", None),
+                        "description": getattr(it, "description", None),
                     }
                 )
         except Exception:
