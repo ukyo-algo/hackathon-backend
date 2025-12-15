@@ -213,14 +213,14 @@ class LLMService:
                         contents.append(
                             types.Content(
                                 role="model",
-                                parts=[types.Part.from_text(content)],
+                                parts=[types.Part(text=content)],
                             )
                         )
                     else:
                         contents.append(
                             types.Content(
                                 role="user",
-                                parts=[types.Part.from_text(content)],
+                                parts=[types.Part(text=content)],
                             )
                         )
 
@@ -228,7 +228,7 @@ class LLMService:
             contents.append(
                 types.Content(
                     role="user",
-                    parts=[types.Part.from_text(message)],
+                    parts=[types.Part(text=message)],
                 )
             )
 
