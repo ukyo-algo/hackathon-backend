@@ -11,6 +11,7 @@ from google.oauth2 import service_account  # サービスアカウント認証�
 
 from app.core.config import settings
 from app.db import models
+
 # from app.api.v1.endpoints.items import get_items  # 未使用のためコメントアウト
 
 # --- LLM クライアントの定義 ---
@@ -107,9 +108,17 @@ class LLMService:
         """ユーザーの設定中のペルソナになりきって返信する（チャット履歴対応）"""
         # クライアントが利用可能かチェック
         if not self.client:
+            # オフライン時の親切なフォールバック応答
             return {
-                "reply": "申し訳ありません。AIシステムが停止しています。管理者に報告してください。",
-                "persona": {"name": "エラー", "avatar_url": "", "theme": "error"},
+                "reply": (
+                    "今はAI接続が不安定なようです。よろしければ、探している商品や"
+                    "ご予算・用途を教えてください。私からも候補や相場の目安をご提案します。"
+                ),
+                "persona": {
+                    "name": "ガイド",
+                    "avatar_url": "/avatars/default.png",
+                    "theme": "default",
+                },
             }
 
         # 1. ユーザーと現在セット中のキャラを取得
@@ -190,7 +199,7 @@ class LLMService:
         try:
             # 5. チャット履歴と現在のメッセージを合成
             contents = []
-            
+
             # 過去の履歴があれば追加（role: user/ai → user/model に変換）
             if history:
                 for h in history:
@@ -214,7 +223,7 @@ class LLMService:
                                 parts=[types.Part.from_text(content)],
                             )
                         )
-            
+
             # 現在のメッセージを追加
             contents.append(
                 types.Content(
@@ -235,13 +244,19 @@ class LLMService:
         except APIError as e:
             print(f"LLM API Error: {e}")
             return {
-                "reply": f"通信エラーが発生しました。サーバー認証を確認してください。詳細: {e}",
+                "reply": (
+                    "通信が不安定なようです。どのカテゴリや価格帯を検討中か教えていただければ、"
+                    "今できる範囲で候補や比較観点を提案します。"
+                ),
                 "persona": persona_info,
             }
         except Exception as e:
             print(f"LLM Unhandled Error: {e}")
             return {
-                "reply": "あ、ごめんなさい... 予期せぬエラーで応答できません。",
+                "reply": (
+                    "少し不具合が発生しました。差し支えなければ、目的や条件（例: 1万円以内のワイヤレスイヤホン）"
+                    "を教えてください。できる範囲で候補や相場のヒントを返します。"
+                ),
                 "persona": persona_info,
             }
 
@@ -324,9 +339,7 @@ class LLMService:
     # ----------------------------------------------
     # 3. ログイン時のおすすめ商品生成 (アイテムサービスとの連携)
     # ----------------------------------------------
-    def generate_login_recommendation(
-        self, firebase_uid: str
-    ) -> Dict[str, Any]:
+    def generate_login_recommendation(self, firebase_uid: str) -> Dict[str, Any]:
         """
         ログイン時に、設定されたキャラの性格に基づいたおすすめ商品とコメントを生成
         """

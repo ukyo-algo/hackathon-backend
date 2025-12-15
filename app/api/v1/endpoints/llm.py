@@ -29,8 +29,37 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
     )
 
     llm_svc = get_llm_service(db)
-    result = llm_svc.chat_with_persona(user_id=uid or "", message=prompt)
-    return {"message": result.get("reply"), "persona": result.get("persona")}
+    try:
+        result = llm_svc.chat_with_persona(user_id=uid or "", message=prompt)
+        reply = result.get("reply")
+        persona = result.get("persona")
+        if reply:
+            return {"message": reply, "persona": persona}
+    except Exception:
+        # LLM側が未設定/失敗時は下のフォールバックに移行
+        pass
+
+    # フォールバック: ページに応じた1文ガイダンスを返す
+    lower_path = (path or "").lower()
+    if "buyer" in lower_path:
+        fb = (
+            "購入者向けの取引一覧です。配送状況を確認し、商品を受け取ったら"
+            "『受け取りました』で取引を完了しましょう。"
+        )
+    elif "seller" in lower_path:
+        fb = (
+            "出品者向けの取引一覧です。発送の準備ができたら『発送しました』で"
+            "購入者へステータスを更新しましょう。"
+        )
+    else:
+        fb = (
+            "このページの目的に沿って次の一歩を進めましょう。"
+            "必要であれば右下のチャットで相談できます。"
+        )
+    return {
+        "message": fb,
+        "persona": {"name": "ガイド", "avatar_url": "/avatars/default.png"},
+    }
 
 
 @router.post("/func")
