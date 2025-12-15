@@ -1,12 +1,13 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class RecommendItem(BaseModel):
-    id: int
-    title: str
+    item_id: str
+    name: str
     price: Optional[int] = None
     image_url: Optional[str] = None
+    description: Optional[str] = None
 
 
 class RecommendRequest(BaseModel):
@@ -18,6 +19,7 @@ class RecommendRequest(BaseModel):
 class RecommendResponse(BaseModel):
     can_recommend: bool
     persona_question: str
+    message: str
     items: List[RecommendItem]
-    persona: dict
+    persona: Dict[str, Any]
     reason: Optional[str] = None

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.dependencies import get_db
+from app.db.database import get_db
 from app.services.llm_service import get_llm_service
 from app.schemas.recommend import RecommendRequest, RecommendResponse, RecommendItem
 
@@ -8,7 +8,7 @@ from app.schemas.recommend import RecommendRequest, RecommendResponse, Recommend
 router = APIRouter()
 
 
-@router.post("/recommend", response_model=RecommendResponse)
+@router.post("", response_model=RecommendResponse)
 def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
     llm = get_llm_service(db)
     if req.mode not in ("history", "keyword"):
