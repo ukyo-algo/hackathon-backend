@@ -1,6 +1,5 @@
 # hackathon-backend/app/services/llm_service.py
 
-import os
 import json
 from google import genai
 from google.genai import types
@@ -12,7 +11,7 @@ from google.oauth2 import service_account  # サービスアカウント認証�
 
 from app.core.config import settings
 from app.db import models
-from app.api.v1.endpoints.items import get_items  # 削除せず維持
+# from app.api.v1.endpoints.items import get_items  # 未使用のためコメントアウト
 
 # --- LLM クライアントの定義 ---
 # グローバル変数としてクライアントを保持
@@ -40,7 +39,10 @@ def get_gemini_client():
         # 4. 認証オブジェクトを作成 (★修正: scopesを追加)
         # ここで「Google Cloudを使います」と宣言しないと invalid_scope エラーになります
         creds = service_account.Credentials.from_service_account_info(
-            creds_info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            creds_info,
+            scopes=[
+                "https://www.googleapis.com/auth/cloud-platform",
+            ],
         )
 
         # 5. JSONの中からプロジェクトIDも自動取得
@@ -48,12 +50,13 @@ def get_gemini_client():
 
         # 6. クライアント初期化
         client = genai.Client(
-            vertexai=True, project=project_id, location="us-central1", credentials=creds
+            vertexai=True,
+            project=project_id,
+            location="us-central1",
+            credentials=creds,
         )
 
-        print(
-            f"✅ Gemini Client Initialized with Service Account (Project: {project_id})"
-        )
+        print(f"✅ Gemini Client initialized (Project: {project_id})")
         return client
 
     except json.JSONDecodeError as e:
@@ -95,10 +98,13 @@ class LLMService:
     # ----------------------------------------------
     # 1. LLM対話機能のコア (キャラクターなりきり)
     # ----------------------------------------------
-    def chat_with_persona(self, user_id: str, message: str) -> dict:
-        """
-        ユーザーの設定中のペルソナになりきって返信する
-        """
+    def chat_with_persona(
+        self,
+        user_id: str,
+        message: str,
+        history: List[dict] = None,
+    ) -> dict:
+        """ユーザーの設定中のペルソナになりきって返信する（チャット履歴対応）"""
         # クライアントが利用可能かチェック
         if not self.client:
             return {
@@ -182,10 +188,45 @@ class LLMService:
         )
 
         try:
-            # 5. Geminiにメッセージを送信
+            # 5. チャット履歴と現在のメッセージを合成
+            contents = []
+            
+            # 過去の履歴があれば追加（role: user/ai → user/model に変換）
+            if history:
+                for h in history:
+                    role = h.get("role", "user")
+                    content = h.get("content", "")
+                    # AIガイダンス系や type がある場合はスキップ
+                    if h.get("type") == "guidance" or not content:
+                        continue
+                    # API形式に変換（user/model）
+                    if role == "ai":
+                        contents.append(
+                            types.Content(
+                                role="model",
+                                parts=[types.Part.from_text(content)],
+                            )
+                        )
+                    else:
+                        contents.append(
+                            types.Content(
+                                role="user",
+                                parts=[types.Part.from_text(content)],
+                            )
+                        )
+            
+            # 現在のメッセージを追加
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(message)],
+                )
+            )
+
+            # 6. Geminiにメッセージを送信（履歴付き）
             response = self.client.models.generate_content(
                 model=self.model_name,
-                contents=[message],
+                contents=contents,
                 config=config,
             )
 
@@ -217,7 +258,10 @@ class LLMService:
             raise HTTPException(status_code=503, detail="AIサービスが利用できません。")
 
         # 画像データを Part オブジェクトに変換 (mime_typeは適宜調整)
-        image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+        image_part = types.Part.from_bytes(
+            data=image_bytes,
+            mime_type="image/jpeg",
+        )
 
         # LLMに出力させたいJSONスキーマを定義
         json_schema = {
@@ -262,7 +306,9 @@ class LLMService:
 
         try:
             response = self.client.models.generate_content(
-                model=self.model_name, contents=[image_part, prompt_text], config=config
+                model=self.model_name,
+                contents=[image_part, prompt_text],
+                config=config,
             )
             # JSON形式で返ってくるため、パースして返す
             return json.loads(response.text)
@@ -278,7 +324,9 @@ class LLMService:
     # ----------------------------------------------
     # 3. ログイン時のおすすめ商品生成 (アイテムサービスとの連携)
     # ----------------------------------------------
-    def generate_login_recommendation(self, firebase_uid: str) -> Dict[str, Any]:
+    def generate_login_recommendation(
+        self, firebase_uid: str
+    ) -> Dict[str, Any]:
         """
         ログイン時に、設定されたキャラの性格に基づいたおすすめ商品とコメントを生成
         """
