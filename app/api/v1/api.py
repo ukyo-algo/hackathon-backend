@@ -1,5 +1,14 @@
 from fastapi import APIRouter
-from .endpoints import items, users, chat, gacha, search, transactions  # 取引APIを追加
+from .endpoints import (
+    items,
+    users,
+    chat,
+    gacha,
+    search,
+    transactions,
+    llm,
+    recommendations,
+)  # LLM/Reco追加
 
 api_router = APIRouter()
 
@@ -11,3 +20,9 @@ api_router.include_router(search.router, tags=["Search"])  # ★ searchを登録
 api_router.include_router(
     transactions.router, prefix="/transactions", tags=["Transactions"]
 )  # 取引
+api_router.include_router(llm.router, prefix="/llm", tags=["LLM"])
+api_router.include_router(
+    recommendations.router,
+    prefix="/recommendations",
+    tags=["Recommendations"],
+)

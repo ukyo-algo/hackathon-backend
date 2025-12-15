@@ -21,12 +21,47 @@ from app.schemas import transaction as transaction_schema
 router = APIRouter()
 
 
+def get_current_user(
+    db: Session = Depends(get_db),
+    # フロントエンドから "X-Firebase-Uid" というヘッダーでUIDを受け取る
+    x_firebase_uid: str | None = Header(default=None),
+):
+    """
+    リクエストヘッダーのUIDを元に、現在のユーザーを特定する。
+    """
+    if x_firebase_uid is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="認証情報(X-Firebase-Uid)が不足しています",
+        )
+
+    # DBからユーザーを検索
+    user = (
+        db.query(models.User).filter(models.User.firebase_uid == x_firebase_uid).first()
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ユーザーが見つかりません。先に登録してください。",
+        )
+    return user
+
+
 @router.get("/personas", response_model=List[user_schema.PersonaBase])
 def read_all_personas(db: Session = Depends(get_db)):
     """
     全キャラクターのリストを取得します。
     """
     return db.query(models.AgentPersona).all()
+
+
+@router.get("/me", response_model=user_schema.UserBase)
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    """
+    現在のユーザー情報を取得します。
+    """
+    return current_user
 
 
 @router.post("/", response_model=user_schema.UserBase)
@@ -63,45 +98,16 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
         # まずユーザーを保存してIDを確定させる
         db.add(new_user)
         db.flush()
-        
+
         # 中間テーブルレコードを作成
         user_persona = models.UserPersona(
-            user_id=new_user.id,
-            persona_id=default_persona.id,
-            stack_count=1
+            user_id=new_user.id, persona_id=default_persona.id, stack_count=1
         )
         db.add(user_persona)
 
     db.commit()
     db.refresh(new_user)
     return new_user
-
-
-def get_current_user(
-    db: Session = Depends(get_db),
-    # フロントエンドから "X-Firebase-Uid" というヘッダーでUIDを受け取る
-    x_firebase_uid: str | None = Header(default=None),
-):
-    """
-    リクエストヘッダーのUIDを元に、現在のユーザーを特定する。
-    """
-    if x_firebase_uid is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="認証情報(X-Firebase-Uid)が不足しています",
-        )
-
-    # DBからユーザーを検索
-    user = (
-        db.query(models.User).filter(models.User.firebase_uid == x_firebase_uid).first()
-    )
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="ユーザーが見つかりません。先に登録してください。",
-        )
-    return user
 
 
 @router.get("/me/items", response_model=List[item_schema.Item])
@@ -177,14 +183,6 @@ def read_own_commented_items(
 # app/api/v1/endpoints/users.py に以下を追加
 
 
-@router.get("/me", response_model=user_schema.UserBase)
-def read_users_me(current_user: models.User = Depends(get_current_user)):
-    """
-    現在のユーザー情報を取得します。
-    """
-    return current_user
-
-
 @router.put("/me/persona", response_model=user_schema.UserBase)
 def update_user_persona(
     persona_id: int,
@@ -200,11 +198,11 @@ def update_user_persona(
         db.query(models.UserPersona)
         .filter(
             models.UserPersona.user_id == current_user.id,
-            models.UserPersona.persona_id == persona_id
+            models.UserPersona.persona_id == persona_id,
         )
         .first()
     )
-    
+
     if not user_persona:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -229,7 +227,9 @@ def read_own_personas(
     # UserPersonaのリストではなく、AgentPersonaのリストを返す必要があるためJOINする
     personas = (
         db.query(models.AgentPersona)
-        .join(models.UserPersona, models.AgentPersona.id == models.UserPersona.persona_id)
+        .join(
+            models.UserPersona, models.AgentPersona.id == models.UserPersona.persona_id
+        )
         .filter(models.UserPersona.user_id == current_user.id)
         .all()
     )
