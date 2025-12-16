@@ -19,8 +19,8 @@ def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
         user_id=req.user_id, mode=req.mode, keyword=req.keyword
     )
 
-    # 型合わせ
-    items = [RecommendItem(**i) for i in result.get("items", [])]
+    # 型合わせ（最大4件に制限）
+    items = [RecommendItem(**i) for i in result.get("items", [])][:4]
     return RecommendResponse(
         can_recommend=result.get("can_recommend", False),
         persona_question=result.get("persona_question", ""),
