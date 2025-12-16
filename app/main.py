@@ -10,10 +10,9 @@ from typing import List
 # 必要なモジュール
 from app.db import models
 from app.schemas import user as user_schema
-from app.db.database import get_db, engine, Base, SessionLocal
+from app.db.database import get_db, engine, Base
 from app.api.v1.api import api_router
-
-# ★修正: seed_if_empty のインポートを削除。起動時には呼ばない。
+from app.core.config import settings
 
 app = FastAPI(title="FleaMarketApp API", version="1.0.0")
 
@@ -31,9 +30,6 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         print("✅ Tables check passed.")
 
-        # 3. 初期データの自動投入 (削除/コメントアウト)
-        # 起動時間の問題があるため、この処理は手動で実行する
-
     except Exception as e:
         print(f"⚠️ Startup error: {e}")
         # 例外発生時も起動プロセスを停止させず、アプリを起動させる
@@ -42,14 +38,9 @@ def startup_event():
 
 # --- CORS設定 ---
 # CORS設定: 本番・開発・Vercelプレビューを許可
-origins = [
-    "https://hackathon-frontend-theta.vercel.app",
-    "http://localhost:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +52,7 @@ app.include_router(api_router, prefix="/api/v1")
 # --- スタティックファイル (デモ画像) ---
 # フロントエンドの public/demo_products をマウント
 demo_products_path = os.path.join(
-    os.path.dirname(__file__), "../..", "hackathon-frontend/public/demo_products"
+    os.path.dirname(__file__), settings.STATIC_FILES_PATH
 )
 if os.path.exists(demo_products_path):
     app.mount(

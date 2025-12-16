@@ -42,6 +42,18 @@ class Settings:
     REWARD_AMOUNT: int = int(os.getenv("REWARD_AMOUNT", "1000"))
     REWARD_COOLDOWN_MINUTES: int = int(os.getenv("REWARD_COOLDOWN_MINUTES", "60"))
 
+    # CORS設定
+    CORS_ORIGINS: list = [
+        "https://hackathon-frontend-theta.vercel.app",
+        "http://localhost:3000",
+    ]
+
+    # パス設定
+    STATIC_FILES_PATH: str = "../hackathon-frontend/public/demo_products"
+
+    # DEBUG mode
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+
 
 # 設定インスタンスを作成してエクスポート
 settings = Settings()
