@@ -169,7 +169,7 @@ User: "いらないから捨てようかな"
         "id": 5,
         "name": "深緑のエルフ",
         "rarity": 4,
-        "rarity_name": "ハイレア",
+        "rarity_name": "ウルトラレア",
         "theme_color": "#4caf50",
         "avatar_url": "/avatars/model5.png",
         
@@ -206,7 +206,7 @@ User: "読み終わったら売ればいいや"
         "id": 6,
         "name": "真理の錬金術師",
         "rarity": 4,
-        "rarity_name": "ハイレア",
+        "rarity_name": "ウルトラレア",
         "theme_color": "#9c27b0",
         "avatar_url": "/avatars/model6.png",
         
@@ -436,7 +436,7 @@ User: "梱包が雑だったって評価があるね"
         "id": 12,
         "name": "遊興の悪魔",
         "rarity": 4,
-        "rarity_name": "ハイレア",
+        "rarity_name": "ウルトラレア",
         "theme_color": "#e040fb",
         "avatar_url": "/avatars/model12.png",
         
@@ -736,7 +736,7 @@ User: "プラスチックのケース、大量に買っちゃった"
         "id": 20,
         "name": "異界の宇宙人",
         "rarity": 4,
-        "rarity_name": "ハイレア",
+        "rarity_name": "ウルトラレア",
         "theme_color": "#00e676",
         "avatar_url": "/avatars/model20.png",
         
