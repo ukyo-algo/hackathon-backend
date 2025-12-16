@@ -1,3 +1,9 @@
+# app/api/v1/endpoints/llm.py
+"""
+LLM関連エンドポイント
+ページ遷移コンテキスト、Function Calling対応
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Any, Dict, List
@@ -5,6 +11,7 @@ from typing import Any, Dict, List
 from app.db.database import get_db
 from app.db import models
 from app.services.llm_service import get_llm_service
+from app.schemas.context import ContextRequest, PageContext, build_context_text
 
 import re
 
@@ -15,99 +22,146 @@ router = APIRouter()
 def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
     """
     ページ遷移のコンテキストを受け取り、ペルソナ口調のひと言ガイダンスを返す。
-    Gemini未設定時はフォールバック文で応答します。
+    
+    リクエストbody:
+    - uid: Firebase UID
+    - path: 現在のパス
+    - query: クエリパラメータ
+    - page_context: PageContext (オプション、フロントから送られるリッチな情報)
     """
     uid = payload.get("uid")
     path = payload.get("path")
     query = payload.get("query") or ""
+    page_context_raw = payload.get("page_context")
 
     if not path:
         raise HTTPException(status_code=400, detail="path is required")
 
     q_info = f"?{query}" if query else ""
     print(f"[llm/context] uid={uid} path={path}{q_info}")
-    # --- 追加: ユーザー・DB・クエリ情報をプロンプトに反映 ---
+    
+    # --- ユーザー情報取得 ---
     user = (
         db.query(models.User).filter(models.User.firebase_uid == uid).first()
         if uid
         else None
     )
-    recent_items = []
-    if user:
-        recent_items = (
-            db.query(models.Item)
-            .filter(models.Item.seller_id == user.id)
-            .order_by(models.Item.created_at.desc())
-            .limit(3)
-            .all()
-        )
-    search_word = None
-    if "q=" in query:
-        search_word = query.split("q=")[-1]
-    item_id = None
-    item_detail = None
-    # パスが /items/{item_id} 形式なら item_id を抽出
-    m = re.match(r"^/items/([^/?]+)", path or "")
-    if m:
-        item_id = m.group(1)
+    
+    # --- ページコンテキストの構築 ---
+    context_text = ""
+    
+    # フロントから送られたpage_contextがあれば使用
+    if page_context_raw:
+        try:
+            page_context = PageContext(**page_context_raw)
+            context_text = build_context_text(page_context)
+        except Exception as e:
+            print(f"[llm/context] page_context parse error: {e}")
+    
+    # page_contextがない場合、従来のDB問い合わせでコンテキスト構築
+    if not context_text:
+        context_text = _build_legacy_context(db, user, path, query)
+    
+    # --- プロンプト構築 ---
+    prompt = f"""
+{context_text}
 
-    if item_id:
-        item_detail = (
-            db.query(models.Item).filter(models.Item.item_id == item_id).first()
-        )
+ユーザーがページ「{path}{q_info}」を開きました。
+上記の情報を踏まえて、キャラクターとしてユーザーに寄り添う一言を返してください。
+商品を見ているなら具体的な感想や意見を、それ以外なら次のアクションの提案をしてください。
+"""
 
-    context_info = ""
-    if user:
-        context_info += f"ユーザー名: {user.username}。"
-    if search_word:
-        context_info += f"現在「{search_word}」で検索中。"
-    if item_detail:
-        context_info += f"閲覧中アイテム: {item_detail.name}（{item_detail.category}）"
-    if recent_items:
-        context_info += f"最近の出品: {', '.join([it.name for it in recent_items])}。"
-
-    prompt = (
-        f"{context_info} "
-        f"ユーザーがページ『{path}{q_info}』を開きました。"
-        "このページの目的と、ユーザーが次に取るべき具体的な一歩を日本語で1文、親切に提案してください。"
-        "回答は丁寧な口調で行い、ペルソナの特徴を反映してください。"
-    )
-    print("prompt", prompt)
+    print(f"[llm/context] prompt length: {len(prompt)}")
 
     llm_svc = get_llm_service(db)
     try:
         result = llm_svc.chat_with_persona(user_id=uid or "", current_chat=prompt)
         reply = result.get("reply")
         persona = result.get("persona")
-        # ガイダンスはsystem/guidanceとして履歴に保存（以後の会話で参照）
+        
+        # ガイダンスをDB履歴に保存
         if uid:
             try:
-                llm_svc.add_guidance(uid, prompt)
+                llm_svc.add_guidance(uid, context_text)
             except Exception:
                 pass
+                
         if reply:
             return {"message": reply, "persona": persona}
-    except Exception:
-        # LLM側が未設定/失敗時は下のフォールバックに移行
-        pass
+    except Exception as e:
+        print(f"[llm/context] LLM error: {e}")
 
-    # フォールバック: ページに応じた1文ガイダンスを返す
+    # フォールバック
+    return _fallback_response(path)
+
+
+def _build_legacy_context(db: Session, user, path: str, query: str) -> str:
+    """従来のDB問い合わせベースのコンテキスト構築"""
+    lines = []
+    
+    if user:
+        lines.append(f"【ユーザー】{user.username}")
+        
+        # コイン残高
+        if hasattr(user, 'coins'):
+            lines.append(f"【コイン残高】{user.coins:,}コイン")
+    
+    # 検索クエリ
+    if "q=" in query:
+        search_word = query.split("q=")[-1].split("&")[0]
+        lines.append(f"【検索キーワード】「{search_word}」")
+    
+    # アイテム詳細ページの場合
+    m = re.match(r"^/items/([^/?]+)", path or "")
+    if m:
+        item_id = m.group(1)
+        item = db.query(models.Item).filter(models.Item.item_id == item_id).first()
+        if item:
+            lines.append("")
+            lines.append("【現在見ている商品】")
+            lines.append(f"  商品名: {item.name}")
+            lines.append(f"  価格: ¥{item.price:,}")
+            if item.category:
+                lines.append(f"  カテゴリ: {item.category}")
+            if item.condition:
+                lines.append(f"  状態: {item.condition}")
+            if item.description:
+                desc = (item.description[:200] + "...") if len(item.description or "") > 200 else item.description
+                lines.append(f"  説明: {desc}")
+            if item.seller:
+                lines.append(f"  出品者: {item.seller.username}")
+            lines.append(f"  いいね数: {getattr(item, 'like_count', 0)}")
+            
+            # コメント取得
+            comments = getattr(item, 'comments', [])
+            if comments:
+                lines.append(f"  コメント数: {len(comments)}")
+                lines.append("  最近のコメント:")
+                for c in comments[:5]:
+                    username = c.user.username if c.user else "匿名"
+                    content = (c.content[:50] + "...") if len(c.content or "") > 50 else c.content
+                    lines.append(f"    - {username}: 「{content}」")
+    
+    return "\n".join(lines)
+
+
+def _fallback_response(path: str) -> Dict[str, Any]:
+    """LLM失敗時のフォールバック応答"""
     lower_path = (path or "").lower()
+    
     if "buyer" in lower_path:
-        fb = (
-            "購入者向けの取引一覧です。配送状況を確認し、商品を受け取ったら"
-            "『受け取りました』で取引を完了しましょう。"
-        )
+        fb = "購入した商品の状況を確認できます。届いたら『受け取りました』で完了しましょう。"
     elif "seller" in lower_path:
-        fb = (
-            "出品者向けの取引一覧です。発送の準備ができたら『発送しました』で"
-            "購入者へステータスを更新しましょう。"
-        )
+        fb = "出品中の商品一覧です。発送準備ができたらステータスを更新しましょう。"
+    elif "/items/" in lower_path:
+        fb = "商品の詳細ページです。気になる点があれば質問してくださいね。"
+    elif "gacha" in lower_path:
+        fb = "ガチャで新しいキャラクターをゲットしましょう！"
+    elif "mypage" in lower_path:
+        fb = "マイページです。取引状況や設定を確認できます。"
     else:
-        fb = (
-            "このページの目的に沿って次の一歩を進めましょう。"
-            "必要であれば右下のチャットで相談できます。"
-        )
+        fb = "何かお探しですか？お手伝いしますよ。"
+    
     return {
         "message": fb,
         "persona": {"name": "ガイド", "avatar_url": "/avatars/default.png"},
@@ -134,7 +188,6 @@ def call_llm_function(payload: Dict[str, Any], db: Session = Depends(get_db)):
                 detail="args.item_name is required",
             )
 
-        # on_sale の部分一致で価格集計
         q = db.query(models.Item).filter(models.Item.status == "on_sale")
         q = q.filter(models.Item.name.ilike(f"%{item_name}%"))
         items: List[models.Item] = q.all()
@@ -189,5 +242,4 @@ def call_llm_function(payload: Dict[str, Any], db: Session = Depends(get_db)):
 
         return {"result": {"items": results, "query": qstr}}
 
-    # 未対応の関数はOKのみ返す
     return {"result": {"ok": True}}
