@@ -187,6 +187,7 @@ class AgentPersona(Base):
     avatar_url = Column(String(512))
     rarity = Column(Integer, default=1)
     rarity_name = Column(String(32), default=None)  # 日本語レアリティ名
+    # rarity_key = Column(String(8), default=None)  # ← 不要なので削除
     skill_name = Column(String(255))
     skill_effect = Column(String(255))
 

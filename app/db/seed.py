@@ -74,8 +74,8 @@ def create_initial_data(db: Session):
             avatar_url=p_data["avatar_url"],
             rarity=p_data["rarity"],
             theme_color=p_data["theme_color"],
-            rarity_name=p_data.get("rarity_name")
-            or RARITY_LABELS.get(p_data["rarity"], ""),
+            rarity_name=p_data["rarity_name"],
+            # rarity_keyは不要
         )
         db.add(persona)
         persona_objects[p_data["id"]] = persona
