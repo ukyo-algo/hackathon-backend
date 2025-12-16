@@ -1,157 +1,24 @@
 # hackathon-backend/app/services/llm_service.py
 
 import json
-from pathlib import Path
-from google import genai
+import random
 from google.genai import types
 from google.genai.errors import APIError
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from fastapi import HTTPException
-from google.oauth2 import service_account
-import random
 
-from app.core.config import settings
 from app.db import models
+from app.services.llm_base import LLMBase
+from app.services.prompts import (
+    CHAT_OUTPUT_RULES,
+    DEFAULT_SYSTEM_PROMPT,
+    build_recommend_prompt,
+)
 
 
-# --- LLM クライアントの定義 ---
-# グローバル変数としてクライアントを保持
-client = None
-WEB_INFO = None
-
-
-def _load_web_info():
-    """app/web_info/web_info.json を読み込む（存在しなければ None）"""
-    try:
-        base = Path(__file__).resolve().parent.parent  # app/
-        p = base / "web_info" / "web_info.json"
-        if not p.exists():
-            return None
-        with p.open("r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"⚠️ WEB_INFO load failed: {e}")
-        return None
-
-
-def get_gemini_client():
-    """Geminiクライアントを取得または初期化する (レイジー初期化)"""
-    global client
-    if client is not None:
-        return client
-
-    # 1. config.py経由で環境変数の文字列を取得
-    sa_key_string = settings.GEMINI_SA_KEY
-
-    # 2. 認証情報の確認
-    if not sa_key_string:
-        print("⚠️ GEMINI_SA_KEY is empty. AI features will be disabled.")
-        return None
-
-    try:
-        # 3. JSON文字列を辞書(dict)に変換
-        creds_info = json.loads(sa_key_string)
-
-        # 4. 認証オブジェクトを作成 (★修正: scopesを追加)
-        # ここで「Google Cloudを使います」と宣言しないと invalid_scope エラーになります
-        creds = service_account.Credentials.from_service_account_info(
-            creds_info,
-            scopes=[
-                "https://www.googleapis.com/auth/cloud-platform",
-            ],
-        )
-
-        # 5. JSONの中からプロジェクトIDも自動取得
-        project_id = creds_info.get("project_id")
-
-        # 6. クライアント初期化
-        client = genai.Client(
-            vertexai=True,
-            project=project_id,
-            location="us-central1",
-            credentials=creds,
-        )
-
-        print(f"✅ Gemini Client initialized (Project: {project_id})")
-        return client
-
-    except json.JSONDecodeError as e:
-        print(f"❌ JSON Parse Error: 環境変数のJSONが壊れています。\nError: {e}")
-        return None
-    except Exception as e:
-        print(f"⚠️ Gemini Client Initialization Failed: {e}")
-        return None
-
-
-class LLMService:
-    def __init__(self, db: Session):
-        self.db = db
-        self.model_name = settings.GEMINI_MODEL
-        self.client = get_gemini_client()
-        global WEB_INFO
-        if WEB_INFO is None:
-            WEB_INFO = _load_web_info()
-
-    # --- DB永続化: 履歴の読み書き ---
-    def _load_history(self, user_id: str, limit: int = 50) -> List[dict]:
-        """ユーザーのチャット/ガイダンス履歴を古い順で最大limit件取得"""
-        if not user_id:
-            return []
-        try:
-            rows = (
-                self.db.query(models.ChatMessage)
-                .filter(models.ChatMessage.user_id == user_id)
-                .order_by(models.ChatMessage.created_at.asc())
-                .limit(limit)
-                .all()
-            )
-            return [
-                {"role": r.role, "type": r.type, "content": r.content or ""}
-                for r in rows
-            ]
-        except Exception as e:
-            print(f"⚠️ load history failed: {e}")
-            return []
-
-    def _save_message(
-        self, user_id: str, role: str, content: str, mtype: str | None = None
-    ) -> None:
-        if not user_id:
-            return
-        try:
-            msg = models.ChatMessage(
-                user_id=user_id, role=role, type=mtype, content=content
-            )
-            self.db.add(msg)
-            self.db.commit()
-        except Exception as e:
-            self.db.rollback()
-            print(f"⚠️ save message failed: {e}")
-
-    def add_guidance(self, user_id: str, content: str) -> None:
-        """ページ遷移等のガイダンスをsystem/guidanceとして保存"""
-        self._save_message(
-            user_id=user_id, role="system", content=content, mtype="guidance"
-        )
-
-    def log_interaction(self, user_id: str, interaction_type: str, data: dict) -> None:
-        """すべてのLLM操作を履歴に保存（統一インターフェース）
-        
-        Args:
-            user_id: ユーザーID
-            interaction_type: 操作タイプ (recommend, search, etc.)
-            data: 保存するデータ（JSON化される）
-        """
-        try:
-            content = json.dumps(data, ensure_ascii=False)
-            self._save_message(
-                user_id=user_id, role="ai", content=content, mtype=interaction_type
-            )
-        except Exception as e:
-            print(f"⚠️ log_interaction failed: {e}")
-
-
+class LLMService(LLMBase):
+    """LLMサービス - LLMBaseを継承"""
 
     def chat_with_persona(
         self,
@@ -168,9 +35,7 @@ class LLMService:
             "avatar_url": "/avatars/default.png",
             "theme": "default",
         }
-        system_instruction = (
-            "あなたは親切なAIアシスタントです。優しくサポートしてください。"
-        )
+        system_instruction = DEFAULT_SYSTEM_PROMPT
 
         try:
             user = (
@@ -227,35 +92,17 @@ class LLMService:
         if current_persona:
             system_instruction = current_persona.system_prompt or system_instruction
             # 返答は3〜4行、心中は省略
-            system_instruction += "\n\n【重要な出力ルール】\n- 心の中の独白（心中）は出力しないでください\n- 発言（発言）のみを3〜4行で簡潔に出力してください"
+            system_instruction += CHAT_OUTPUT_RULES
             persona_info = {
                 "name": current_persona.name,
                 "avatar_url": current_persona.avatar_url,
                 "theme": current_persona.theme_color,
             }
 
-        if WEB_INFO and isinstance(WEB_INFO, dict):
-            try:
-                routes = WEB_INFO.get("routes", [])
-                notes = WEB_INFO.get("guidance", {}).get("notes", [])
-                lines = [
-                    "[WEB_INFO] アプリの主要ページと用途の要点:",
-                ]
-                for r in routes:
-                    path = r.get("path")
-                    name = r.get("name")
-                    purpose = r.get("purpose")
-                    if path and name:
-                        lines.append(f"- {name} ({path}): {purpose}")
-                if notes:
-                    lines.append("[NOTES]")
-                    for n in notes:
-                        lines.append(f"- {n}")
-                web_info_text = "\n".join(lines)
-                # --- 指示文を削除し、情報のみ付与 ---
-                system_instruction = f"{system_instruction}\n\n{web_info_text}\n\n"
-            except Exception as e:
-                print(f"⚠️ WEB_INFO build failed: {e}")
+        # WEB_INFOをシステム指示に追加
+        web_info_text = self._build_web_info_text()
+        if web_info_text:
+            system_instruction = f"{system_instruction}\n\n{web_info_text}\n\n"
 
         # --- 履歴: DBから読み込み（ユーザー別） ---
         history_rows = self._load_history(user_id=user_id, limit=200)
@@ -425,22 +272,7 @@ class LLMService:
                 for it in items
             ])
             
-            prompt = f"""以下の商品をユーザーにおすすめする理由を書いてください。
-
-【重要】
-- 心の中の独白（心中）は出力しないでください
-- 発言のみを短く（1文で）書いてください
-- あなたのキャラクターの口調で書いてください
-
-【キーワード/モード】{keyword or 'おすすめ'} ({mode})
-
-【商品リスト】
-{items_text}
-
-【出力形式】
-JSON形式で出力してください。キーは商品名、値はおすすめ理由（1文）です。
-例: {{"Nike Air Max": "これは良い装備ですね！"}}
-"""
+            prompt = build_recommend_prompt(keyword, mode, items_text)
 
             config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -455,13 +287,19 @@ JSON形式で出力してください。キーは商品名、値はおすすめ�
             
             # JSONをパース
             response_text = resp.text or "{}"
+            print(f"DEBUG: LLM Response: {response_text}")
+
             # ```json ... ``` を除去
             if "```json" in response_text:
                 response_text = response_text.split("```json")[1].split("```")[0]
             elif "```" in response_text:
                 response_text = response_text.split("```")[1].split("```")[0]
             
-            name_to_reason = json.loads(response_text.strip())
+            try:
+                name_to_reason = json.loads(response_text.strip())
+            except Exception as e:
+                print(f"DEBUG: JSON decode failed: {e}")
+                name_to_reason = {}
             
             # 商品名からitem_idにマッピング
             for it in items:
@@ -474,6 +312,7 @@ JSON形式で出力してください。キーは商品名、値はおすすめ�
                         if name in item_name or item_name in name:
                             item_reasons[it["item_id"]] = reason
                             break
+            print(f"DEBUG: Generated reasons: {item_reasons}")
         except Exception as e:
             print(f"⚠️ reason generation failed: {e}")
 
