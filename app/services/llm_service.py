@@ -226,6 +226,8 @@ class LLMService:
 
         if current_persona:
             system_instruction = current_persona.system_prompt or system_instruction
+            # 返答は3〜4行、心中は省略
+            system_instruction += "\n\n【重要な出力ルール】\n- 心の中の独白（心中）は出力しないでください\n- 発言（発言）のみを3〜4行で簡潔に出力してください"
             persona_info = {
                 "name": current_persona.name,
                 "avatar_url": current_persona.avatar_url,
@@ -423,8 +425,12 @@ class LLMService:
                 for it in items
             ])
             
-            prompt = f"""以下の商品をユーザーにおすすめする理由を、あなたのキャラクターの口調で書いてください。
-各商品について1〜2文で、なぜおすすめなのか理由を書いてください。
+            prompt = f"""以下の商品をユーザーにおすすめする理由を書いてください。
+
+【重要】
+- 心の中の独白（心中）は出力しないでください
+- 発言のみを短く（1文で）書いてください
+- あなたのキャラクターの口調で書いてください
 
 【キーワード/モード】{keyword or 'おすすめ'} ({mode})
 
@@ -432,8 +438,8 @@ class LLMService:
 {items_text}
 
 【出力形式】
-JSON形式で出力してください。キーは商品名、値はおすすめ理由です。
-例: {{"Nike Air Max": "これは良い装備ですね！", "MacBook": "作業効率が上がりそうです"}}
+JSON形式で出力してください。キーは商品名、値はおすすめ理由（1文）です。
+例: {{"Nike Air Max": "これは良い装備ですね！"}}
 """
 
             config = types.GenerateContentConfig(

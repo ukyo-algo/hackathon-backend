@@ -36,11 +36,11 @@ def draw_gacha(
         raise HTTPException(status_code=500, detail="排出対象のキャラクターがいません")
     # --- GACHA_PROBABILITIESと同じ値をサーバー側にも定義 ---
     GACHA_PROBABILITIES = {
-        1: 0.60,  # 60%
-        2: 0.20,  # 20%
-        3: 0.10,  # 10%
-        4: 0.07,  # 7%
-        5: 0.03,  # 3%
+        1: 0.40,
+        2: 0.30,
+        3: 0.15,
+        4: 0.10,
+        5: 0.05,
     }
 
     # レアリティごとの候補リストを作成
