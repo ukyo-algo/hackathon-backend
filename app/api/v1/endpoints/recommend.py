@@ -24,6 +24,7 @@ def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
     return RecommendResponse(
         can_recommend=result.get("can_recommend", False),
         persona_question=result.get("persona_question", ""),
+        message=result.get("message", ""),
         items=items,
         persona=result.get("persona", {}),
         reason=result.get("reason"),
