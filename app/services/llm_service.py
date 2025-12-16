@@ -8,14 +8,12 @@ from google.genai.errors import APIError
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from fastapi import HTTPException
-from google.oauth2 import service_account  # サービスアカウント認証用
+from google.oauth2 import service_account
+import random
 
 from app.core.config import settings
-import random
 from app.db import models
-from datetime import datetime, timedelta
 
-# from app.api.v1.endpoints.items import get_items  # 未使用のためコメントアウト
 
 # --- LLM クライアントの定義 ---
 # グローバル変数としてクライアントを保持
@@ -94,34 +92,6 @@ class LLMService:
         global WEB_INFO
         if WEB_INFO is None:
             WEB_INFO = _load_web_info()
-        # item_serviceは未使用のため、内部ヘルパーで代替
-
-    # --- Item取得用の簡易ヘルパー ---
-    def _get_popular_item(self):
-        try:
-            # 直近の出品から1件（簡易人気枠）
-            return (
-                self.db.query(models.Item)
-                .filter(models.Item.status == "on_sale")
-                .order_by(models.Item.created_at.desc())
-                .first()
-            )
-        except Exception:
-            return None
-
-    def _get_random_item(self):
-        try:
-            items = (
-                self.db.query(models.Item)
-                .filter(models.Item.status == "on_sale")
-                .limit(50)
-                .all()
-            )
-            if not items:
-                return None
-            return random.choice(items)
-        except Exception:
-            return None
 
     # --- DB永続化: 履歴の読み書き ---
     def _load_history(self, user_id: str, limit: int = 50) -> List[dict]:
@@ -165,12 +135,23 @@ class LLMService:
             user_id=user_id, role="system", content=content, mtype="guidance"
         )
 
-    # 互換: 以前のメモリ履歴APIはダミー化
-    def append_history(self, entry: dict):
-        pass
+    def log_interaction(self, user_id: str, interaction_type: str, data: dict) -> None:
+        """すべてのLLM操作を履歴に保存（統一インターフェース）
+        
+        Args:
+            user_id: ユーザーID
+            interaction_type: 操作タイプ (recommend, search, etc.)
+            data: 保存するデータ（JSON化される）
+        """
+        try:
+            content = json.dumps(data, ensure_ascii=False)
+            self._save_message(
+                user_id=user_id, role="ai", content=content, mtype=interaction_type
+            )
+        except Exception as e:
+            print(f"⚠️ log_interaction failed: {e}")
 
-    def reset_history(self):
-        pass
+
 
     def chat_with_persona(
         self,
@@ -374,7 +355,7 @@ class LLMService:
         """
         - mode: "history" | "keyword"
         - keyword: mode=="keyword"の時に使用
-        - 5件（設定値）のアイテムとペルソナ質問文を返す
+        - 4件（設定値）のアイテムとペルソナ質問文を返す
         """
         persona_info = {
             "name": "AIアシスタント",
@@ -400,10 +381,10 @@ class LLMService:
                 "theme": persona.theme_color,
             }
 
-        # アイテム候補を集める（簡易: 人気+ランダムから5件）
+        # アイテム候補を集める（4件）
         items = []
         try:
-            item_count = getattr(settings, "RECOMMEND_ITEM_COUNT", 5)
+            item_count = getattr(settings, "RECOMMEND_ITEM_COUNT", 4)
             base_q = (
                 self.db.query(models.Item)
                 .filter(models.Item.status == "on_sale")
@@ -413,113 +394,98 @@ class LLMService:
             if mode == "keyword" and keyword:
                 like = f"%{keyword}%"
                 base_q = base_q.filter(
-                    (models.Item.title.ilike(like))
+                    (models.Item.name.ilike(like))
                     | (models.Item.description.ilike(like))
                 )
             candidates = base_q.limit(50).all()
-            # シャッフルして上位5件
             random.shuffle(candidates)
             for it in candidates[:item_count]:
-                items.append(
-                    {
-                        "item_id": str(getattr(it, "item_id", it.id)),
-                        "name": getattr(it, "name", getattr(it, "title", "")),
-                        "price": getattr(it, "price", None),
-                        "image_url": getattr(it, "image_url", None),
-                        "description": getattr(it, "description", None),
-                    }
-                )
+                items.append({
+                    "item_id": str(getattr(it, "item_id", it.id)),
+                    "name": getattr(it, "name", getattr(it, "title", "")),
+                    "price": getattr(it, "price", None),
+                    "image_url": getattr(it, "image_url", None),
+                    "description": getattr(it, "description", None),
+                })
         except Exception:
             items = []
 
-        # ペルソナ質問文をLLMで生成（web_info + 直近ガイダンスを文脈に）
-        question_prompt = ""
+        # ペルソナの口調で各商品の理由を生成
+        item_reasons = {}
         try:
-            # system_instructionの再構成（chat_with_personaと同様）
-            system_instruction = (
-                "あなたは親切なAIアシスタントです。優しくサポートしてください。"
-            )
+            system_instruction = "あなたは親切なAIアシスタントです。"
             if user and user.current_persona:
-                system_instruction = (
-                    user.current_persona.system_prompt or system_instruction
-                )
+                system_instruction = user.current_persona.system_prompt or system_instruction
 
-            if WEB_INFO and isinstance(WEB_INFO, dict):
-                routes = WEB_INFO.get("routes", [])
-                notes = WEB_INFO.get("guidance", {}).get("notes", [])
-                lines = ["[WEB_INFO] アプリの主要ページと用途の要点:"]
-                for r in routes:
-                    path = r.get("path")
-                    name = r.get("name")
-                    purpose = r.get("purpose")
-                    if path and name:
-                        lines.append(f"- {name} ({path}): {purpose}")
-                if notes:
-                    lines.append("[NOTES]")
-                    for n in notes:
-                        lines.append(f"- {n}")
-                web_info_text = "\n".join(lines)
-                system_instruction = f"{system_instruction}\n\n{web_info_text}\n\n"
+            # 商品リストをプロンプト用に整形
+            items_text = "\n".join([
+                f"- {it['name']} (¥{it['price']:,}): {(it.get('description') or '')[:100]}"
+                for it in items
+            ])
+            
+            prompt = f"""以下の商品をユーザーにおすすめする理由を、あなたのキャラクターの口調で書いてください。
+各商品について1〜2文で、なぜおすすめなのか理由を書いてください。
 
-            # 直近ガイダンスを付与
-            history_rows = self._load_history(user_id=user_id, limit=200)
-            last_guidance = None
-            for h in reversed(history_rows):
-                if (
-                    h.get("role") == "system"
-                    and h.get("type") == "guidance"
-                    and h.get("content")
-                ):
-                    last_guidance = h.get("content")
-                    break
-            if last_guidance:
-                system_instruction = (
-                    f"{system_instruction}\n\n[PAGE CONTEXT]\n{last_guidance}"
-                )
+【キーワード/モード】{keyword or 'おすすめ'} ({mode})
+
+【商品リスト】
+{items_text}
+
+【出力形式】
+JSON形式で出力してください。キーは商品名、値はおすすめ理由です。
+例: {{"Nike Air Max": "これは良い装備ですね！", "MacBook": "作業効率が上がりそうです"}}
+"""
 
             config = types.GenerateContentConfig(
-                system_instruction=system_instruction, temperature=0.6
+                system_instruction=system_instruction,
+                temperature=0.7,
             )
             contents = [
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part(
-                            text=(
-                                "ログイン直後のおすすめを提示する前の一言質問を生成してください。"
-                                "ユーザーが好みや条件を自然に答えやすい、1文の丁寧な日本語にしてください。"
-                                f"モード: {mode} / キーワード: {keyword or ''}"
-                            )
-                        )
-                    ],
-                )
+                types.Content(role="user", parts=[types.Part(text=prompt)])
             ]
             resp = self.client.models.generate_content(
                 model=self.model_name, contents=contents, config=config
             )
-            question_prompt = (
-                resp.text or "今の気分や予算など、ざっくり希望を教えてください。"
-            )
-        except Exception:
-            question_prompt = "今の気分や予算など、ざっくり希望を教えてください。"
+            
+            # JSONをパース
+            response_text = resp.text or "{}"
+            # ```json ... ``` を除去
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0]
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0]
+            
+            name_to_reason = json.loads(response_text.strip())
+            
+            # 商品名からitem_idにマッピング
+            for it in items:
+                item_name = it["name"]
+                if item_name in name_to_reason:
+                    item_reasons[it["item_id"]] = name_to_reason[item_name]
+                else:
+                    # 部分一致で探す
+                    for name, reason in name_to_reason.items():
+                        if name in item_name or item_name in name:
+                            item_reasons[it["item_id"]] = reason
+                            break
+        except Exception as e:
+            print(f"⚠️ reason generation failed: {e}")
 
-        # 履歴にrecommendとして保存（制限判定用）
-        try:
-            self._save_message(
-                user_id=user_id,
-                role="system",
-                content=f"recommend:{mode}:{keyword or ''}",
-                mtype="recommend",
-            )
-        except Exception:
-            pass
+        # 履歴に保存（log_interactionを使用）
+        self.log_interaction(user_id, "recommend", {
+            "keyword": keyword,
+            "mode": mode,
+            "items": [{"item_id": it["item_id"], "name": it["name"]} for it in items],
+            "reasons": item_reasons,
+        })
 
         return {
             "can_recommend": True,
-            "persona_question": question_prompt,
             "items": items,
+            "reasons": item_reasons,  # {item_id: reason}
+            "keyword": keyword,
+            "mode": mode,
             "persona": persona_info,
-            "reason": None,
         }
 
     # ----------------------------------------------
@@ -597,51 +563,6 @@ class LLMService:
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"予期せぬエラー: {e}")
-
-    # ----------------------------------------------
-    # 3. ログイン時のおすすめ商品生成 (アイテムサービスとの連携)
-    # ----------------------------------------------
-    def generate_login_recommendation(self, firebase_uid: str) -> Dict[str, Any]:
-        """
-        ログイン時に、設定されたキャラの性格に基づいたおすすめ商品とコメントを生成
-        """
-        # このメソッドはデモ用であり、現在はダミーのロジックです
-        if not self.client:
-            return {"comment": "AIシステムが利用できません。", "item": None}
-
-        user = (
-            self.db.query(models.User)
-            .filter(models.User.firebase_uid == firebase_uid)
-            .first()
-        )
-
-        # ユーザーとキャラが紐付いていない場合のフォールバック
-        if not user or not user.current_persona:
-            item = self._get_popular_item()
-            return {
-                "comment": "ようこそ！早速、人気のアイテムを見てみましょう！",
-                "item": item,
-            }
-
-        persona = user.current_persona
-
-        # 簡易的なロジック切り替え
-        if "執事" in persona.name:
-            item = self._get_popular_item()  # ダミー: ここで高度なマッチングを呼ぶ
-            comment = "本日は、ご主人様にふさわしい逸品をご紹介いたします。"
-        elif "ギャル" in persona.name:
-            item = self._get_random_item()
-            comment = "マジでヤバいアイテム見つけたんだけど、見てみて！👀"
-        else:  # ドット絵の青年
-            item = self._get_popular_item()
-            comment = "おかえりなさい！今日は特に注目されている商品をご紹介しますね。"
-
-        return {
-            "comment": comment,
-            "item": item,
-            "persona_name": persona.name,
-            "persona_avatar": persona.avatar_url,
-        }
 
 
 # グローバルなllm_serviceインスタンス（依存性注入で使用）
