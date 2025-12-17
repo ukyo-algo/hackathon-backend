@@ -42,6 +42,9 @@ class Settings:
     REWARD_AMOUNT: int = int(os.getenv("REWARD_AMOUNT", "1000"))
     REWARD_COOLDOWN_MINUTES: int = int(os.getenv("REWARD_COOLDOWN_MINUTES", "60"))
 
+    # ガチャ設定
+    GACHA_COST: int = int(os.getenv("GACHA_COST", "100"))
+
     # CORS設定
     CORS_ORIGINS: list = [
         "https://hackathon-frontend-theta.vercel.app",

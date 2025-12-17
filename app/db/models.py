@@ -210,12 +210,15 @@ class ChatMessage(Base):
     # 多くの既存FKと整合させるため firebase_uid を参照
     user_id = Column(String(255), ForeignKey("users.firebase_uid"), index=True)
     role = Column(String(16))  # 'user' | 'ai' | 'system'
-    type = Column(String(16), nullable=True)  # 'chat' | 'guidance' | None
+    type = Column(String(50), nullable=True)  # 'chat' | 'guidance' | None
     content = Column(Text)
+    persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+    page_path = Column(String(255), nullable=True)  # どのページで発言されたか
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # リレーション
     user = relationship("User", back_populates="chat_messages")
+    persona = relationship("AgentPersona")
 
 
 # User へ逆参照を追加
