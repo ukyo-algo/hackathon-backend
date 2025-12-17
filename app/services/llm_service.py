@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 from fastapi import HTTPException
 
 from app.db import models
+from app.core.config import settings
 from app.services.llm_base import LLMBase
 from app.services.prompts import (
     CHAT_OUTPUT_RULES,
