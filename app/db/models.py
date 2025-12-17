@@ -186,19 +186,19 @@ class AgentPersona(Base):
     system_prompt = Column(Text)
     avatar_url = Column(String(512))
     rarity = Column(Integer, default=1)
-    rarity_name = Column(String(32), default=None)  # 日本語レアリティ名
-    # rarity_key = Column(String(8), default=None)  # ← 不要なので削除
+    rarity_name = Column(String(50), default="ノーマル")
     skill_name = Column(String(255))
     skill_effect = Column(String(255))
 
     # キャラクターのテーマカラー
     theme_color = Column(String(50), default="#1976d2")
-    rarity_name = Column(String(50), default="ノーマル")
+    
+    # キャラクター詳細情報 (追加)
+    origin = Column(Text, nullable=True)
+    tragedy = Column(Text, nullable=True)
+    obsession = Column(Text, nullable=True)
+    mbti = Column(String(50), nullable=True)
 
-    # リレーション
-    # owners = relationship("User", secondary="user_personas", back_populates="owned_personas")
-    # ↑ 中間テーブルをクラス化したため、直接のMany-to-Manyリレーションは定義しづらい
-    # 必要なら association_proxy を使うが、今回は逆参照はあまり使わないのでコメントアウトか削除
     pass
 
 

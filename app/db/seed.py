@@ -53,7 +53,7 @@ def _get_product_image_url(category: str) -> str:
 
 def _build_demo_image_url(relative_url: str) -> str:
     """デモ画像のパスを絶対URLに変換する"""
-    FRONTEND_URL = os.getenv("FRONTEND_URL")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "https://hackathon-frontend-theta.vercel.app")
     if not relative_url.startswith("/"):
         return relative_url
     return f"{FRONTEND_URL}{relative_url}"
@@ -75,7 +75,13 @@ def create_initial_data(db: Session):
             rarity=p_data["rarity"],
             theme_color=p_data["theme_color"],
             rarity_name=p_data["rarity_name"],
-            # rarity_keyは不要
+            skill_name=p_data.get("skill_name"),
+            skill_effect=p_data.get("skill_effect"),
+            # キャラクター詳細情報
+            origin=p_data.get("origin"),
+            tragedy=p_data.get("tragedy"),
+            obsession=p_data.get("obsession"),
+            mbti=p_data.get("mbti"),
         )
         db.add(persona)
         persona_objects[p_data["id"]] = persona

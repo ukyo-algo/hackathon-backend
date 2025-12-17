@@ -10,6 +10,13 @@ class PersonaBase(BaseModel):
     theme_color: Optional[str] = "#1976d2"
     rarity: Optional[int] = None
     rarity_name: Optional[str] = None
+    # 追加フィールド: キャラクター詳細情報
+    origin: Optional[str] = None
+    tragedy: Optional[str] = None
+    obsession: Optional[str] = None
+    mbti: Optional[str] = None
+    skill_name: Optional[str] = None
+    skill_effect: Optional[str] = None
 
     class Config:
         from_attributes = True
