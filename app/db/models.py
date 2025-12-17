@@ -259,3 +259,24 @@ class LLMRecommendation(Base):
 # User へ逆参照を追加
 User.recommendations = relationship("LLMRecommendation", back_populates="user")
 
+
+# --- 10. ChatMessage Model (チャット履歴) ---
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), index=True)
+    role = Column(String(20))  # 'user', 'ai', 'system'
+    content = Column(Text)
+    type = Column(String(50), nullable=True)  # 'guidance', 'chat', etc.
+    persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+    page_path = Column(String(255), nullable=True)  # どのページで発言されたか
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # リレーション
+    user = relationship("User", back_populates="chat_messages")
+    persona = relationship("AgentPersona")
+
+
+# User へ逆参照を追加
+User.chat_messages = relationship("ChatMessage", back_populates="user")
