@@ -234,6 +234,13 @@ class LLMService(LLMBase):
         items = []
         try:
             item_count = getattr(settings, "RECOMMEND_ITEM_COUNT", 4)
+            print(f"[generate_recommendations] Querying items with status='on_sale'")
+            
+            # まず全件数を確認
+            total_items = self.db.query(models.Item).count()
+            on_sale_items = self.db.query(models.Item).filter(models.Item.status == "on_sale").count()
+            print(f"[generate_recommendations] Total items in DB: {total_items}, on_sale: {on_sale_items}")
+            
             base_q = (
                 self.db.query(models.Item)
                 .filter(models.Item.status == "on_sale")
@@ -247,6 +254,8 @@ class LLMService(LLMBase):
                     | (models.Item.description.ilike(like))
                 )
             candidates = base_q.limit(50).all()
+            print(f"[generate_recommendations] Candidates found: {len(candidates)}")
+            
             random.shuffle(candidates)
             for it in candidates[:item_count]:
                 items.append({
@@ -256,7 +265,11 @@ class LLMService(LLMBase):
                     "image_url": getattr(it, "image_url", None),
                     "description": getattr(it, "description", None),
                 })
-        except Exception:
+            print(f"[generate_recommendations] Final items: {len(items)}")
+        except Exception as e:
+            print(f"[generate_recommendations] ERROR querying items: {e}")
+            import traceback
+            traceback.print_exc()
             items = []
 
         # ペルソナの口調で各商品の理由を生成
