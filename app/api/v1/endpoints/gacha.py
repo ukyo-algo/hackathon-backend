@@ -23,12 +23,16 @@ def draw_gacha(
 ):
     """
     ガチャを引くエンドポイント。
-    現在は0コインで実行可能。
+    100コイン消費。
     """
-    # 1. コイン消費ロジック (現在はスキップ)
-    # if current_user.points < 100:
-    #     raise HTTPException(status_code=400, detail="ポイントが足りません")
-    # current_user.points -= 100
+    # 1. コイン消費ロジック
+    GACHA_COST = 100
+    if (current_user.coins or 0) < GACHA_COST:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"コインが足りません（必要: {GACHA_COST}コイン、所持: {current_user.coins or 0}コイン）"
+        )
+    current_user.coins = (current_user.coins or 0) - GACHA_COST
 
     # 2. 排出ロジック (レアリティに基づく重み付け抽選)
     all_personas = db.query(models.AgentPersona).all()
