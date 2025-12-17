@@ -9,6 +9,137 @@ COMMON_INSTRUCTION = """
 4. ユーザーをAIの利用者ではなく、対等な人間（あるいは共犯者）として扱ってください。
 """
 
+# =============================================================================
+# スキル定義（skill_type と Lv1→Lv10 のパラメータ）
+# =============================================================================
+# skill_type の種類:
+#   - "gacha_duplicate_fragments": ガチャ被り時に追加でもらえる記憶のかけら
+#   - "levelup_cost_reduction": レベルアップに必要なかけらを減少（%）
+#   - "quest_reward_bonus": クエスト報酬にボーナス（固定値）
+#   - "quest_cooldown_reduction": クエストクールダウン短縮（分）
+#   - "purchase_bonus_percent": 購入時ガチャポイントボーナス（%）
+#   - "daily_shipping_coupon": デイリー送料割引クーポン（%と有効時間）
+#   - "daily_gacha_discount": デイリーガチャ割引クーポン（%）
+
+SKILL_DEFINITIONS = {
+    # ★1 ノーマル（育成特化）
+    1: {  # ドット絵の青年
+        "skill_type": "gacha_duplicate_fragments",
+        "base_value": 1,
+        "max_value": 5,  # Lv10で+5個
+    },
+    8: {  # 熱血な冒険者
+        "skill_type": "levelup_cost_reduction",
+        "base_value": 2,
+        "max_value": 10,  # Lv10で-10%
+    },
+    
+    # ★2 レア（育成特化）
+    2: {  # 強気なギャル
+        "skill_type": "gacha_duplicate_fragments",
+        "base_value": 2,
+        "max_value": 8,
+    },
+    11: {  # 王国の聖騎士
+        "skill_type": "levelup_cost_reduction",
+        "base_value": 3,
+        "max_value": 15,
+    },
+    13: {  # 流浪の吟遊詩人
+        "skill_type": "quest_reward_bonus",
+        "base_value": 5,
+        "max_value": 30,
+    },
+    15: {  # 汎用サポートロイド
+        "skill_type": "quest_cooldown_reduction",
+        "base_value": 3,
+        "max_value": 15,  # 分
+    },
+    19: {  # 森のドルイド
+        "skill_type": "gacha_duplicate_fragments",
+        "base_value": 2,
+        "max_value": 8,
+    },
+    
+    # ★3 スーパーレア（育成 + 軽実用）
+    3: {  # 老練な執事
+        "skill_type": "purchase_bonus_percent",
+        "base_value": 1,
+        "max_value": 5,
+        "categories": ["メンズ", "時計", "ブランド"],
+    },
+    4: {  # 祝福の天使
+        "skill_type": "gacha_duplicate_fragments",
+        "base_value": 3,
+        "max_value": 12,
+    },
+    7: {  # 星詠みの魔女
+        "skill_type": "quest_reward_bonus",
+        "base_value": 10,
+        "max_value": 50,
+    },
+    9: {  # 剛腕のドワーフ
+        "skill_type": "levelup_cost_reduction",
+        "base_value": 5,
+        "max_value": 20,
+    },
+    10: {  # 疾風の忍者
+        "skill_type": "quest_cooldown_reduction",
+        "base_value": 5,
+        "max_value": 25,
+    },
+    14: {  # 路地裏の盗賊
+        "skill_type": "purchase_bonus_percent",
+        "base_value": 1,
+        "max_value": 5,
+        "categories": None,  # 全カテゴリ
+    },
+    
+    # ★4 ウルトラレア（実用スキル）
+    5: {  # 深緑のエルフ
+        "skill_type": "daily_shipping_coupon",
+        "discount_percent": 5,
+        "base_hours": 3,
+        "max_hours": 12,
+    },
+    6: {  # 真理の錬金術師
+        "skill_type": "purchase_bonus_percent",
+        "base_value": 3,
+        "max_value": 10,
+        "categories": ["スマホ", "家電", "カメラ"],
+    },
+    12: {  # 遊興の悪魔
+        "skill_type": "daily_gacha_discount",
+        "base_value": 10,
+        "max_value": 30,
+    },
+    20: {  # 異界の宇宙人
+        "skill_type": "gacha_duplicate_fragments",
+        "base_value": 5,
+        "max_value": 20,
+    },
+    
+    # ★5 チャンピョン（最強実用）
+    16: {  # 気まぐれ猫精霊
+        "skill_type": "daily_shipping_coupon",
+        "discount_percent": 10,
+        "base_hours": 6,
+        "max_hours": 24,
+    },
+    17: {  # 古のドラゴン
+        "skill_type": "purchase_bonus_percent",
+        "base_value": 5,
+        "max_value": 15,
+        "categories": ["時計", "宝石", "ブランド"],
+    },
+    18: {  # 伝説の豪商
+        "skill_type": "daily_shipping_coupon",
+        "discount_percent": 15,
+        "base_hours": 6,
+        "max_hours": 24,
+    },
+}
+
 PERSONAS_DATA = [
     # =========================================================
     # 1. レトロRPG・アドベンチャー出身（ビギナー系）

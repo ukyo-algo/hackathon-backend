@@ -109,6 +109,7 @@ def buy_item(
     指定された商品を購入します。
     - 商品のステータスを 'sold' に変更
     - Transaction レコードを作成
+    - 購入金額の10%をガチャポイントとして付与（スキルボーナス込み）
     """
     # 1. 商品を取得（排他制御は今回は省略）
     item = db.query(models.Item).filter(models.Item.item_id == item_id).first()
@@ -133,6 +134,35 @@ def buy_item(
         price=item.price,
         status="pending_shipment",
     )
+
+    # 5. 購入報酬: 購入金額の10%をガチャポイントとして付与
+    base_reward = item.price // 10  # 10%
+    
+    # スキルボーナス計算（purchase_bonus_percent タイプのスキル）
+    from app.db.data.personas import SKILL_DEFINITIONS
+    skill_bonus_percent = 0
+    if current_user.current_persona_id:
+        skill_def = SKILL_DEFINITIONS.get(current_user.current_persona_id)
+        if skill_def and skill_def.get("skill_type") == "purchase_bonus_percent":
+            # カテゴリチェック
+            categories = skill_def.get("categories")
+            if categories is None or (item.category and any(cat in item.category for cat in categories)):
+                # 現在のペルソナのレベルを取得
+                current_up = db.query(models.UserPersona).filter(
+                    models.UserPersona.user_id == current_user.id,
+                    models.UserPersona.persona_id == current_user.current_persona_id,
+                ).first()
+                level = current_up.level if current_up else 1
+                # Lv1で base_value%、Lv10で max_value%
+                base_val = skill_def.get("base_value", 0)
+                max_val = skill_def.get("max_value", 0)
+                skill_bonus_percent = base_val + int((max_val - base_val) * (level - 1) / 9)
+    
+    # ボーナスを加算
+    skill_bonus_points = item.price * skill_bonus_percent // 100
+    total_reward = base_reward + skill_bonus_points
+    
+    current_user.gacha_points = (current_user.gacha_points or 0) + total_reward
 
     db.add(transaction)
     db.commit()

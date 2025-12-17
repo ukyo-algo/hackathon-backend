@@ -46,8 +46,18 @@ class User(Base):
     email = Column(String(255))
     icon_url = Column(String(512), nullable=True)  # URLは長めにとる
 
-    # ゲーム内通貨（コイン）: ガチャ・購入・報酬すべてこれで管理
-    coins = Column(Integer, default=1000)
+    # ゲーム内通貨（ガチャポイント）: ガチャ・購入報酬すべてこれで管理
+    gacha_points = Column(Integer, default=1000)  # 旧名: coins
+    
+    # 記憶のかけら: レベルアップに使用
+    memory_fragments = Column(Integer, default=0)
+    
+    # デイリーパートナー: 0時時点で装備していたペルソナ（グリッチ対策）
+    daily_partner_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+    daily_partner_set_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # クエスト: 最後にレコメンドクエストを完了した時刻
+    last_recommend_quest_at = Column(DateTime(timezone=True), nullable=True)
 
     # 現在セットしているペルソナID
     current_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
@@ -261,3 +271,36 @@ class LLMRecommendation(Base):
 
 # User へ逆参照を追加
 User.recommendations = relationship("LLMRecommendation", back_populates="user")
+
+
+# --- 10. UserCoupon Model (クーポン) ---
+class UserCoupon(Base):
+    __tablename__ = "user_coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    
+    # クーポンタイプ: "shipping_discount", "gacha_discount"
+    coupon_type = Column(String(50))
+    
+    # 割引率（%）
+    discount_percent = Column(Integer)
+    
+    # 有効期限
+    expires_at = Column(DateTime(timezone=True))
+    
+    # 使用日時（nullなら未使用）
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # どのペルソナから発行されたか
+    issued_by_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # リレーション
+    user = relationship("User", back_populates="coupons")
+    issued_by_persona = relationship("AgentPersona")
+
+
+# User へ逆参照を追加
+User.coupons = relationship("UserCoupon", back_populates="user")

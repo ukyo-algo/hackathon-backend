@@ -102,9 +102,9 @@ def _build_legacy_context(db: Session, user, path: str, query: str) -> str:
     if user:
         lines.append(f"【ユーザー】{user.username}")
         
-        # コイン残高
-        if hasattr(user, 'coins'):
-            lines.append(f"【コイン残高】{user.coins:,}コイン")
+        # ガチャポイント残高
+        if hasattr(user, 'gacha_points'):
+            lines.append(f"【ガチャポイント残高】{user.gacha_points:,}ポイント")
     
     # 検索クエリ
     if "q=" in query:

@@ -234,13 +234,97 @@ def read_own_personas(
         .all()
     )
     return personas
-    personas = (
-        db.query(models.AgentPersona)
+
+
+# レアリティ別レベルアップコスト（記憶のかけら）
+LEVEL_UP_COSTS = {
+    # (rarity, current_level) -> cost
+    1: [5, 10, 15, 20, 30, 40, 50, 60, 70],   # ノーマル: 合計300
+    2: [10, 20, 30, 40, 60, 80, 100, 120, 140],  # レア: 合計600
+    3: [15, 30, 45, 60, 90, 120, 150, 180, 210],  # スーパーレア: 合計900
+    4: [20, 40, 60, 80, 120, 160, 200, 240, 280],  # ウルトラレア: 合計1200
+    5: [30, 60, 90, 120, 180, 240, 300, 360, 420],  # チャンピョン: 合計1800
+}
+
+
+@router.post("/me/personas/{persona_id}/levelup")
+def level_up_persona(
+    persona_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    指定したペルソナをレベルアップする（記憶のかけらを消費）
+    """
+    # 1. 所持しているか確認
+    user_persona = (
+        db.query(models.UserPersona)
         .filter(
-            models.AgentPersona.owners.any(
-                models.User.firebase_uid == current_user.firebase_uid
-            )
+            models.UserPersona.user_id == current_user.id,
+            models.UserPersona.persona_id == persona_id,
         )
-        .all()
+        .first()
     )
-    return personas
+    if not user_persona:
+        raise HTTPException(
+            status_code=400,
+            detail="このペルソナを所持していません",
+        )
+    
+    # 2. レベル上限チェック
+    MAX_LEVEL = 10
+    if user_persona.level >= MAX_LEVEL:
+        raise HTTPException(
+            status_code=400,
+            detail=f"このペルソナは最高レベル（{MAX_LEVEL}）に達しています",
+        )
+    
+    # 3. ペルソナのレアリティを取得
+    persona = db.query(models.AgentPersona).filter(models.AgentPersona.id == persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="ペルソナが見つかりません")
+    
+    # 4. 必要な記憶のかけらを計算（レベルアップ必要数減少スキル考慮）
+    from app.db.data.personas import SKILL_DEFINITIONS
+    
+    base_cost = LEVEL_UP_COSTS.get(persona.rarity, LEVEL_UP_COSTS[1])[user_persona.level - 1]
+    
+    # levelup_cost_reduction スキルの適用
+    cost_reduction_percent = 0
+    if current_user.current_persona_id:
+        skill_def = SKILL_DEFINITIONS.get(current_user.current_persona_id)
+        if skill_def and skill_def.get("skill_type") == "levelup_cost_reduction":
+            current_up = db.query(models.UserPersona).filter(
+                models.UserPersona.user_id == current_user.id,
+                models.UserPersona.persona_id == current_user.current_persona_id,
+            ).first()
+            level = current_up.level if current_up else 1
+            base_val = skill_def.get("base_value", 0)
+            max_val = skill_def.get("max_value", 0)
+            cost_reduction_percent = base_val + int((max_val - base_val) * (level - 1) / 9)
+    
+    actual_cost = base_cost - (base_cost * cost_reduction_percent // 100)
+    actual_cost = max(actual_cost, 1)  # 最低1
+    
+    # 5. 記憶のかけら残高チェック
+    if (current_user.memory_fragments or 0) < actual_cost:
+        raise HTTPException(
+            status_code=400,
+            detail=f"記憶のかけらが足りません（必要: {actual_cost}個、所持: {current_user.memory_fragments or 0}個）",
+        )
+    
+    # 6. レベルアップ実行
+    current_user.memory_fragments = (current_user.memory_fragments or 0) - actual_cost
+    user_persona.level += 1
+    
+    db.commit()
+    db.refresh(user_persona)
+    db.refresh(current_user)
+    
+    return {
+        "success": True,
+        "persona_id": persona_id,
+        "new_level": user_persona.level,
+        "fragments_spent": actual_cost,
+        "remaining_fragments": current_user.memory_fragments,
+    }

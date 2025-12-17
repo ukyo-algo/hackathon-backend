@@ -323,14 +323,14 @@ class FunctionExecutor:
             return {"action": "draw_gacha", "error": "ユーザーが見つかりません"}
         
         cost = settings.GACHA_COST
-        if user.coins < cost:
+        if user.gacha_points < cost:
             return {
                 "action": "draw_gacha",
-                "error": f"コインが足りません（必要: {cost}コイン、残高: {user.coins}コイン）",
+                "error": f"ガチャポイントが足りません（必要: {cost}ポイント、残高: {user.gacha_points}ポイント）",
             }
         
-        # コインを消費
-        user.coins -= cost
+        # ポイントを消費
+        user.gacha_points -= cost
         
         # ランダムにペルソナを選択
         all_personas = self.db.query(models.AgentPersona).all()
@@ -366,7 +366,7 @@ class FunctionExecutor:
                 "is_new": is_new,
             },
             "cost_spent": cost,
-            "remaining_coins": user.coins,
+            "remaining_gacha_points": user.gacha_points,
         }
     
     def _exec_get_recommendations(self, keyword: str = None) -> Dict[str, Any]:
@@ -392,7 +392,7 @@ class FunctionExecutor:
         }
     
     def _exec_check_balance(self) -> Dict[str, Any]:
-        """コイン残高確認"""
+        """残高確認"""
         user = self.db.query(models.User).filter(
             models.User.firebase_uid == self.user_id
         ).first()
@@ -402,7 +402,8 @@ class FunctionExecutor:
         
         return {
             "action": "check_balance",
-            "coins": user.coins,
+            "gacha_points": user.gacha_points,
+            "memory_fragments": user.memory_fragments,
         }
     
     # --- 出品サポート ---

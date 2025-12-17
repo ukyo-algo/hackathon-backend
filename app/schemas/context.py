@@ -34,7 +34,7 @@ class PageContext(BaseModel):
     current_item: Optional[ItemContext] = None
     visible_items: Optional[List[ItemContext]] = None
     search_query: Optional[str] = None
-    user_coins: Optional[int] = None
+    user_gacha_points: Optional[int] = None  # 旧名: user_coins
     owned_persona_names: Optional[List[str]] = None
     additional_info: Optional[Dict[str, Any]] = None
 
@@ -113,9 +113,9 @@ def build_context_text(page_context: Optional[PageContext]) -> str:
             lines.append(f"  {i+1}. {item.name} - ¥{item.price:,}")
     
     # ユーザー情報
-    if page_context.user_coins is not None:
+    if page_context.user_gacha_points is not None:
         lines.append("")
-        lines.append(f"【ユーザーのコイン残高】{page_context.user_coins:,}コイン")
+        lines.append(f"【ユーザーのガチャポイント残高】{page_context.user_gacha_points:,}ポイント")
     
     if page_context.owned_persona_names:
         lines.append(f"【所有キャラクター】{', '.join(page_context.owned_persona_names)}")

@@ -9,6 +9,6 @@ class RewardClaimRequest(BaseModel):
 class RewardClaimResponse(BaseModel):
     granted: bool
     amount: int
-    coins: int
+    gacha_points: int  # 旧名: coins
     next_claim_at: Optional[str] = None  # ISO8601文字列
     reason: Optional[str] = None
