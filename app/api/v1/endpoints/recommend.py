@@ -21,18 +21,29 @@ def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
     """
     AIがおすすめ商品を生成し、DBに保存する。
     """
+    print(f"[recommend] ===== START =====")
+    print(f"[recommend] Request: user_id={req.user_id}, mode={req.mode}, keyword={req.keyword}")
+    
     llm = get_llm_service(db)
     if req.mode not in ("history", "keyword"):
         raise HTTPException(
             status_code=400, detail="mode must be 'history' or 'keyword'"
         )
+    
     result = llm.generate_recommendations(
         user_id=req.user_id, mode=req.mode, keyword=req.keyword
     )
+    
+    print(f"[recommend] LLM result keys: {result.keys()}")
+    print(f"[recommend] Items count: {len(result.get('items', []))}")
+    print(f"[recommend] Items raw: {result.get('items', [])}")
+    print(f"[recommend] Reasons: {result.get('reasons', {})}")
 
     # 型合わせ（最大4件に制限）
     items = [RecommendItem(**i) for i in result.get("items", [])][:4]
     reasons = result.get("reasons", {})
+    
+    print(f"[recommend] Parsed items: {[i.dict() for i in items]}")
 
     # --- DBに保存 ---
     for item in items:
@@ -45,11 +56,12 @@ def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
     
     try:
         db.commit()
+        print(f"[recommend] DB save success: {len(items)} items")
     except Exception as e:
         db.rollback()
         print(f"[recommend] DB save failed: {e}")
 
-    return RecommendResponse(
+    response = RecommendResponse(
         can_recommend=result.get("can_recommend", False),
         persona_question=result.get("persona_question", ""),
         message=result.get("message", ""),
@@ -57,6 +69,11 @@ def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
         persona=result.get("persona", {}),
         reason=result.get("reason"),
     )
+    
+    print(f"[recommend] Response items count: {len(response.items)}")
+    print(f"[recommend] ===== END =====")
+    
+    return response
 
 
 @router.get("/history", response_model=List[RecommendHistoryItem])
