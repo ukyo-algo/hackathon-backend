@@ -23,3 +23,19 @@ class RecommendResponse(BaseModel):
     items: List[RecommendItem]
     persona: Dict[str, Any]
     reason: Optional[str] = None
+
+
+class RecommendHistoryItem(BaseModel):
+    """おすすめ履歴の1件"""
+    id: int
+    item_id: str
+    name: str
+    price: Optional[int] = None
+    image_url: Optional[str] = None
+    reason: Optional[str] = None
+    interest: Optional[str] = None
+    recommended_at: str
+
+    class Config:
+        from_attributes = True
+

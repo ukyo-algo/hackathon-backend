@@ -238,3 +238,24 @@ class RewardEvent(Base):
 
 # User へ逆参照を追加
 User.reward_events = relationship("RewardEvent", back_populates="user")
+
+
+# --- 9. LLMRecommendation Model (おすすめ履歴) ---
+class LLMRecommendation(Base):
+    __tablename__ = "llm_recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(255), ForeignKey("users.firebase_uid"), index=True)
+    item_id = Column(String(255), ForeignKey("items.item_id"), index=True)
+    reason = Column(Text, nullable=True)  # AIが生成した推薦理由
+    interest = Column(String(16), nullable=True)  # null / interested / not_interested
+    recommended_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # リレーション
+    user = relationship("User", back_populates="recommendations")
+    item = relationship("Item")
+
+
+# User へ逆参照を追加
+User.recommendations = relationship("LLMRecommendation", back_populates="user")
+
