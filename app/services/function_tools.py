@@ -131,7 +131,7 @@ FUNCTION_DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="generate_description",
-        description="商品説明文を生成する。ユーザーが「説明書いて」「説明考えて」と言った時に使う。",
+        description="商品説明文を生成する。ユーザーが「説明書いて」「説明考えて」と言った時、または出品フォームページにいて「出品して」と言った時に使う。出品フォームページでは start_listing ではなくこちらを使う。",
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -153,7 +153,7 @@ FUNCTION_DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="start_listing",
-        description="出品フォームに情報を自動入力する。ユーザーが「出品して」「売りたい」と言った時に使う。",
+        description="出品フォームに遷移して情報を自動入力する。ユーザーが「出品して」「売りたい」と言った時に使う。ただし、すでに出品フォームページ（page='items/create'）にいる場合は使わず、generate_description を使うこと。",
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -365,6 +365,7 @@ class FunctionExecutor:
                 "avatar_url": persona.avatar_url,
                 "is_new": is_new,
             },
+            "cost_spent": cost,
             "remaining_coins": user.coins,
         }
     
