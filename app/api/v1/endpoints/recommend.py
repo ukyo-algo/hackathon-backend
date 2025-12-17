@@ -104,6 +104,7 @@ def get_recommend_history(
                     name=rec.item.name,
                     price=rec.item.price,
                     image_url=rec.item.image_url,
+                    status=rec.item.status,
                     reason=rec.reason,
                     interest=rec.interest,
                     recommended_at=rec.recommended_at.isoformat() if rec.recommended_at else "",

@@ -32,6 +32,7 @@ class RecommendHistoryItem(BaseModel):
     name: str
     price: Optional[int] = None
     image_url: Optional[str] = None
+    status: Optional[str] = None  # 'on_sale' or 'sold'
     reason: Optional[str] = None
     interest: Optional[str] = None
     recommended_at: str
