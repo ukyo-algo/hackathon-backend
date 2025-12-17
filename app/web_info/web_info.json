@@ -4,157 +4,346 @@
       "path": "/",
       "name": "ホーム",
       "purpose": "おすすめや新着の一覧を表示。カテゴリや並べ替えを切り替えて商品を探す起点。",
-      "suggested_actions": ["おすすめを確認", "カテゴリで絞り込み", "並べ替え(新着/人気)"],
+      "suggested_actions": [
+        "おすすめを確認",
+        "カテゴリで絞り込み",
+        "並べ替え(新着/人気)"
+      ],
       "ui": {
         "navbar_buttons": [
-          {"label": "ホーム", "path": "/"},
-          {"label": "出品", "path": "/items/create"},
-          {"label": "マイページ", "path": "/mypage"},
-          {"label": "キャラを変更する", "path": "/persona-selection"},
-          {"label": "ガチャを引く", "path": "/gacha"},
-          {"label": "売品の状況", "path": "/seller"},
-          {"label": "購入物の状況", "path": "/buyer"}
+          {
+            "label": "ホーム",
+            "path": "/"
+          },
+          {
+            "label": "出品",
+            "path": "/items/create"
+          },
+          {
+            "label": "マイページ",
+            "path": "/mypage"
+          },
+          {
+            "label": "キャラを変更する",
+            "path": "/persona-selection"
+          },
+          {
+            "label": "ガチャを引く",
+            "path": "/gacha"
+          },
+          {
+            "label": "売品の状況",
+            "path": "/seller"
+          },
+          {
+            "label": "購入物の状況",
+            "path": "/buyer"
+          }
         ],
         "search_bar": {
           "placeholder": "何をお探しですか？",
-          "submit": ["Enterキー", "虫眼鏡アイコンのクリック"],
+          "submit": [
+            "Enterキー",
+            "虫眼鏡アイコンのクリック"
+          ],
           "navigates_to": "/search?q=..."
         }
       },
-      "related": ["/search", "/items/create", "/mypage"]
+      "related": [
+        "/search",
+        "/items/create",
+        "/mypage"
+      ]
     },
     {
       "path": "/search",
       "name": "検索結果",
       "purpose": "検索キーワード(q)に一致する商品一覧を表示。例えば /search?q=靴 の形式。",
       "params": [
-        { "name": "q", "type": "query", "desc": "検索キーワード" }
+        {
+          "name": "q",
+          "type": "query",
+          "desc": "検索キーワード"
+        }
       ],
-      "suggested_actions": ["条件を変えて再検索", "商品の詳細を確認", "価格や状態で比較"],
+      "suggested_actions": [
+        "条件を変えて再検索",
+        "商品の詳細を確認",
+        "価格や状態で比較"
+      ],
       "ui": {
         "list_actions": [
-          {"action": "商品カードをクリック", "result": "/items/:itemId へ移動"}
+          {
+            "action": "商品カードをクリック",
+            "result": "/items/:itemId へ移動"
+          }
         ]
       },
-      "related": ["/items/:itemId", "/"]
+      "related": [
+        "/items/:itemId",
+        "/"
+      ]
     },
     {
       "path": "/items/create",
       "name": "出品フォーム",
       "purpose": "商品のタイトル/説明/画像などを入力して新規出品する。",
       "fields": [
-        "商品画像(必須)", "商品名(必須)", "カテゴリ(必須)", "ブランド(任意)", "商品の状態(必須)", "価格(必須)", "説明(任意)", "クイックモード(即購入OK)チェック"
+        "商品画像(必須)",
+        "商品名(必須)",
+        "カテゴリ(必須)",
+        "ブランド(任意)",
+        "商品の状態(必須)",
+        "価格(必須)",
+        "説明(任意)",
+        "クイックモード(即購入OK)チェック"
       ],
-      "suggested_actions": ["画像をアップロード", "カテゴリ・状態を設定", "クイックモードの可否を選択", "出品するをクリック"],
-      "related": ["/mypage", "/seller"]
+      "suggested_actions": [
+        "画像をアップロード",
+        "カテゴリ・状態を設定",
+        "クイックモードの可否を選択",
+        "出品するをクリック"
+      ],
+      "related": [
+        "/mypage",
+        "/seller"
+      ]
     },
     {
       "path": "/items/:itemId",
       "name": "商品詳細",
       "purpose": "選択した商品の詳細・画像・価格・説明を表示。購入やチャットへの導線。",
       "params": [
-        { "name": "itemId", "type": "path", "desc": "商品ID。パスの一部(例: /items/123)" }
+        {
+          "name": "itemId",
+          "type": "path",
+          "desc": "商品ID。パスの一部(例: /items/123)"
+        }
       ],
-      "suggested_actions": ["購入に進む", "いいね(ハート)を押す", "コメントを投稿", "関連商品の提案を確認"],
+      "suggested_actions": [
+        "購入に進む",
+        "いいね(ハート)を押す",
+        "コメントを投稿",
+        "関連商品の提案を確認"
+      ],
       "ui": {
         "buttons": [
-          {"label": "購入手続きへ", "visible_when": "未販売かつ自分の出品ではない", "navigates_to": "/buy/:itemId"},
-          {"label": "売り切れました", "visible_when": "販売済み", "disabled": true},
-          {"label": "自分で出品した商品です", "visible_when": "自分の出品", "disabled": true}
+          {
+            "label": "購入手続きへ",
+            "visible_when": "未販売かつ自分の出品ではない",
+            "navigates_to": "/buy/:itemId"
+          },
+          {
+            "label": "売り切れました",
+            "visible_when": "販売済み",
+            "disabled": true
+          },
+          {
+            "label": "自分で出品した商品です",
+            "visible_when": "自分の出品",
+            "disabled": true
+          }
         ],
-        "like": {"action": "ハートをクリックでトグル", "count_display": true},
-        "comments": {"input": "テキスト送信", "submit_icon": "紙飛行機", "counter": "コメント数表示"},
-        "recommend": {"section": "こちらもおすすめ", "card_click": "詳細へ遷移"}
+        "like": {
+          "action": "ハートをクリックでトグル",
+          "count_display": true
+        },
+        "comments": {
+          "input": "テキスト送信",
+          "submit_icon": "紙飛行機",
+          "counter": "コメント数表示"
+        },
+        "recommend": {
+          "section": "こちらもおすすめ",
+          "card_click": "詳細へ遷移"
+        }
       },
-      "related": ["/buy/:itemId", "/search"]
+      "related": [
+        "/buy/:itemId",
+        "/search"
+      ]
     },
     {
       "path": "/buy/:itemId",
       "name": "購入手続き",
       "purpose": "対象商品の購入フローに進む。配送先や支払い方法の確認など。",
       "params": [
-        { "name": "itemId", "type": "path", "desc": "購入対象の商品ID" }
+        {
+          "name": "itemId",
+          "type": "path",
+          "desc": "購入対象の商品ID"
+        }
       ],
-      "suggested_actions": ["配送先の確認", "支払い方法の選択", "購入確定"],
-      "related": ["/items/:itemId", "/buyer"]
+      "suggested_actions": [
+        "配送先の確認",
+        "支払い方法の選択",
+        "購入確定"
+      ],
+      "related": [
+        "/items/:itemId",
+        "/buyer"
+      ]
     },
     {
       "path": "/seller",
       "name": "売品の状況(出品者)",
       "purpose": "出品中/発送待ち/発送済みなど、出品者としての取引進捗を一覧で確認。",
-      "suggested_actions": ["発送準備のチェック", "購入者への連絡", "価格調整や公開設定の更新"],
+      "suggested_actions": [
+        "発送準備のチェック",
+        "購入者への連絡",
+        "価格調整や公開設定の更新"
+      ],
       "ui": {
         "transactions": {
-          "statuses": ["pending_shipment", "in_transit"],
+          "statuses": [
+            "pending_shipment",
+            "in_transit"
+          ],
           "buttons": [
-            {"label": "発送しました", "enabled_when": "pending_shipment", "action": "POST /api/v1/transactions/{id}/ship"},
-            {"label": "発送済み", "enabled_when": "in_transit|completed", "disabled": true}
+            {
+              "label": "発送しました",
+              "enabled_when": "pending_shipment",
+              "action": "POST /api/v1/transactions/{id}/ship"
+            },
+            {
+              "label": "発送済み",
+              "enabled_when": "in_transit|completed",
+              "disabled": true
+            }
           ]
         },
-        "unsold_items": {"note": "取引中に含まれない出品を未売品として一覧表示"}
+        "unsold_items": {
+          "note": "取引中に含まれない出品を未売品として一覧表示"
+        }
       },
-      "related": ["/items/create", "/mypage"]
+      "related": [
+        "/items/create",
+        "/mypage"
+      ]
     },
     {
       "path": "/buyer",
       "name": "購入物の状況(購入者)",
       "purpose": "購入済み商品の配送状況やメッセージ、受取確認などを一覧で確認。",
-      "suggested_actions": ["配送状況を確認", "受取連絡", "出品者に質問"],
+      "suggested_actions": [
+        "配送状況を確認",
+        "受取連絡",
+        "出品者に質問"
+      ],
       "ui": {
         "transactions": {
-          "statuses": ["pending_shipment", "in_transit"],
+          "statuses": [
+            "pending_shipment",
+            "in_transit"
+          ],
           "buttons": [
-            {"label": "受け取りました", "enabled_when": "in_transit", "action": "POST /api/v1/transactions/{id}/complete"},
-            {"label": "受取済み", "enabled_when": "completed", "disabled": true}
+            {
+              "label": "受け取りました",
+              "enabled_when": "in_transit",
+              "action": "POST /api/v1/transactions/{id}/complete"
+            },
+            {
+              "label": "受取済み",
+              "enabled_when": "completed",
+              "disabled": true
+            }
           ]
         }
       },
-      "related": ["/buy/:itemId", "/mypage"]
+      "related": [
+        "/buy/:itemId",
+        "/mypage"
+      ]
     },
     {
       "path": "/mypage",
       "name": "マイページ",
       "purpose": "自分のプロフィール、利用状況、所持ペルソナ、ポイント等の管理。",
-      "suggested_actions": ["プロフィール編集", "通知の確認", "出品・購入履歴の確認"],
-      "related": ["/seller", "/buyer", "/persona-selection"]
+      "suggested_actions": [
+        "プロフィール編集",
+        "通知の確認",
+        "出品・購入履歴の確認"
+      ],
+      "related": [
+        "/seller",
+        "/buyer",
+        "/persona-selection"
+      ]
     },
     {
       "path": "/persona-selection",
       "name": "キャラ選択",
       "purpose": "アシスタントのキャラクター(ペルソナ)を選択/変更。以降の案内のスタイルに反映。",
-      "suggested_actions": ["キャラを選ぶ", "プレビューを確認"],
-      "related": ["/mypage"]
+      "suggested_actions": [
+        "キャラを選ぶ",
+        "プレビューを確認"
+      ],
+      "related": [
+        "/mypage"
+      ]
     },
     {
       "path": "/gacha",
       "name": "ガチャ",
-      "purpose": "新しいペルソナ(キャラ)を獲得するガチャ。現在は0ポイントで回せるキャンペーン表示。",
+      "purpose": "新しいペルソナ(キャラ)を獲得するガチャ。1回100ポイントで回せます。",
       "ui": {
-        "draw_button": {"label": "ガチャを回す", "action": "POST /gacha/draw"},
-        "loading": {"label": "召喚中...", "spinner": true},
+        "draw_button": {
+          "label": "ガチャを回す",
+          "action": "POST /gacha/draw"
+        },
+        "loading": {
+          "label": "召喚中...",
+          "spinner": true
+        },
         "result": {
-          "fields": ["message", "persona.name", "persona.avatar_url", "persona.rarity(★の数)", "persona.rarity_name(任意)", "is_new", "stack_count(重複時)"],
+          "fields": [
+            "message",
+            "persona.name",
+            "persona.avatar_url",
+            "persona.rarity(★の数)",
+            "persona.rarity_name(任意)",
+            "is_new",
+            "stack_count(重複時)"
+          ],
           "actions": [
-            {"label": "もう一度回す", "action": "結果クリアして再度ガチャ"},
-            {"label": "マイページへ戻る", "navigates_to": "/mypage"}
+            {
+              "label": "もう一度回す",
+              "action": "結果クリアして再度ガチャ"
+            },
+            {
+              "label": "マイページへ戻る",
+              "navigates_to": "/mypage"
+            }
           ]
         }
       },
-      "related": ["/mypage"]
+      "related": [
+        "/mypage"
+      ]
     },
     {
       "path": "/login",
       "name": "ログイン",
       "purpose": "認証ページ。アカウントでログイン。",
-      "suggested_actions": ["メール/パスワードでログイン", "登録ページへ遷移"],
-      "related": ["/register"]
+      "suggested_actions": [
+        "メール/パスワードでログイン",
+        "登録ページへ遷移"
+      ],
+      "related": [
+        "/register"
+      ]
     },
     {
       "path": "/register",
       "name": "会員登録",
       "purpose": "新規登録ページ。必要事項を入力してアカウント作成。",
-      "suggested_actions": ["メール認証", "ログインページへ遷移"],
-      "related": ["/login"]
+      "suggested_actions": [
+        "メール認証",
+        "ログインページへ遷移"
+      ],
+      "related": [
+        "/login"
+      ]
     }
   ],
   "guidance": {
