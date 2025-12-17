@@ -16,7 +16,7 @@ from app.services.prompts import (
     DEFAULT_SYSTEM_PROMPT,
     build_recommend_prompt,
 )
-
+from app.services.function_tools import TOOLS, FunctionExecutor
 
 class LLMService(LLMBase):
     """LLMサービス - LLMBaseを継承"""
@@ -122,10 +122,11 @@ class LLMService(LLMBase):
                 f"{system_instruction}\n\n[PAGE CONTEXT]\n{last_guidance}"
             )
 
-        # Geminiへの設定
+        # Geminiへの設定（Function Calling対応）
         config = types.GenerateContentConfig(
             system_instruction=system_instruction,
             temperature=0.7,
+            tools=[TOOLS],
         )
 
         try:
@@ -163,19 +164,79 @@ class LLMService(LLMBase):
                 )
             )
 
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=contents,
-                config=config,
-            )
+            # Function Calling対応: ループで関数呼び出しを処理
+            function_calls = []
+            executor = FunctionExecutor(self.db, user_id)
+            max_iterations = 5  # 無限ループ防止
+            
+            for _ in range(max_iterations):
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=config,
+                )
+                
+                # Function Callがあるかチェック
+                if response.candidates and response.candidates[0].content.parts:
+                    parts = response.candidates[0].content.parts
+                    has_function_call = any(
+                        hasattr(part, 'function_call') and part.function_call 
+                        for part in parts
+                    )
+                    
+                    if has_function_call:
+                        # 各Function Callを処理
+                        for part in parts:
+                            if hasattr(part, 'function_call') and part.function_call:
+                                fc = part.function_call
+                                func_name = fc.name
+                                func_args = dict(fc.args) if fc.args else {}
+                                
+                                print(f"[Function Call] {func_name}({func_args})")
+                                
+                                # 関数を実行
+                                result = executor.execute(func_name, func_args)
+                                function_calls.append({
+                                    "name": func_name,
+                                    "args": func_args,
+                                    "result": result,
+                                })
+                                
+                                # 関数の結果をコンテンツに追加して再度生成
+                                contents.append(response.candidates[0].content)
+                                contents.append(
+                                    types.Content(
+                                        role="user",
+                                        parts=[
+                                            types.Part.from_function_response(
+                                                name=func_name,
+                                                response=result,
+                                            )
+                                        ],
+                                    )
+                                )
+                        # 次のイテレーションで応答を生成
+                        continue
+                
+                # テキスト応答が得られたらループを抜ける
+                break
+            
+            # 最終的なテキスト応答を取得
+            reply_text = response.text if response.text else "処理が完了しました。"
+            
             # 生成後に今回の発話とAI応答をDB履歴へ追加
             self._save_message(
                 user_id=user_id, role="user", content=current_chat, mtype="chat"
             )
             self._save_message(
-                user_id=user_id, role="ai", content=response.text, mtype="chat"
+                user_id=user_id, role="ai", content=reply_text, mtype="chat"
             )
-            return {"reply": response.text, "persona": persona_info}
+            
+            return {
+                "reply": reply_text,
+                "persona": persona_info,
+                "function_calls": function_calls if function_calls else None,
+            }
 
         except APIError as e:
             print(f"LLM API Error: {e}")
@@ -422,6 +483,111 @@ class LLMService(LLMBase):
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"予期せぬエラー: {e}")
+
+    # ----------------------------------------------
+    # 画像解析出品サポート
+    # ----------------------------------------------
+    def analyze_image_for_listing(
+        self, user_id: str, image_base64: str, prompt: str | None = None
+    ) -> Dict[str, Any]:
+        """
+        画像を解析して出品に必要な情報を推定する
+        - image_base64: Base64エンコードされた画像
+        - prompt: 追加の指示
+        """
+        import base64
+        import re
+        
+        if not self.client:
+            return {"message": "LLMクライアントが初期化されていません"}
+        
+        # システムプロンプト
+        system_instruction = """
+あなたはフリマアプリの出品サポートAIです。
+画像から商品情報を推定し、JSON形式で返してください。
+
+必ず以下の形式で返答してください：
+```json
+{
+  "name": "商品名（推定）",
+  "category": "カテゴリ（ファッション/家電/ホビー/本/その他）",
+  "condition": "状態（新品/未使用に近い/目立った傷や汚れなし/やや傷や汚れあり/傷や汚れあり）",
+  "suggested_price": 推定価格（数値）,
+  "price_range": {"min": 最低価格, "max": 最高価格},
+  "description": "魅力的な商品説明文（100-200文字）"
+}
+```
+
+重要：
+- ブランド名がわかれば含める
+- 価格は日本円で相場を考慮
+- 説明文は購買意欲を高める内容に
+"""
+        
+        config = types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0.7,
+        )
+        
+        user_prompt = prompt or "この商品を出品したいです。必要な情報を教えてください。"
+        
+        try:
+            # Base64画像をPartに変換
+            # data:image/...形式の場合はヘッダーを除去
+            if "," in image_base64:
+                image_base64 = image_base64.split(",")[1]
+            
+            image_data = base64.b64decode(image_base64)
+            
+            # 画像とテキストを含むコンテンツ
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=image_data, mime_type="image/jpeg"),
+                        types.Part(text=user_prompt),
+                    ],
+                )
+            ]
+            
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=config,
+            )
+            
+            response_text = response.text
+            print(f"[analyze_image] Response: {response_text}")
+            
+            # JSONを抽出
+            json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                # JSON部分を直接探す
+                json_match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
+                json_str = json_match.group(0) if json_match else "{}"
+            
+            try:
+                result = json.loads(json_str)
+            except json.JSONDecodeError:
+                result = {}
+            
+            return {
+                "name": result.get("name"),
+                "category": result.get("category"),
+                "condition": result.get("condition"),
+                "suggested_price": result.get("suggested_price"),
+                "price_range": result.get("price_range"),
+                "description": result.get("description"),
+                "message": f"画像を解析しました。{result.get('name', '商品')}として出品できそうです！",
+            }
+            
+        except Exception as e:
+            print(f"[analyze_image] Error: {e}")
+            return {
+                "message": f"画像解析中にエラーが発生しました: {str(e)}",
+            }
 
 
 # グローバルなllm_serviceインスタンス（依存性注入で使用）

@@ -29,6 +29,7 @@ class ChatResponse(BaseModel):
     """チャットレスポンス"""
     reply: str
     persona: Dict[str, Any]
+    function_calls: Optional[List[Dict[str, Any]]] = None
 
 
 class ChatMessageCreate(BaseModel):
@@ -176,5 +177,47 @@ def get_messages(
             persona_name=persona_name,
             created_at=msg.created_at.isoformat() if msg.created_at else "",
         ))
+    
+    return result
+
+
+# --- 画像解析出品サポート ---
+
+class ImageAnalysisRequest(BaseModel):
+    """画像解析リクエスト"""
+    image_base64: str  # Base64エンコードされた画像
+    prompt: Optional[str] = None  # 追加の指示（オプション）
+
+
+class ImageAnalysisResponse(BaseModel):
+    """画像解析レスポンス"""
+    name: Optional[str] = None
+    category: Optional[str] = None
+    condition: Optional[str] = None
+    suggested_price: Optional[int] = None
+    price_range: Optional[Dict[str, int]] = None
+    description: Optional[str] = None
+    message: str
+
+
+@router.post("/analyze-image", response_model=ImageAnalysisResponse)
+def analyze_listing_image(
+    req: ImageAnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    出品用の画像を解析して商品情報を推定する
+    
+    - image_base64: Base64エンコードされた画像データ
+    - prompt: 追加の指示（例: 「これを出品したい」）
+    """
+    service = LLMService(db)
+    
+    result = service.analyze_image_for_listing(
+        user_id=current_user.firebase_uid,
+        image_base64=req.image_base64,
+        prompt=req.prompt,
+    )
     
     return result
