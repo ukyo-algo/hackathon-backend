@@ -58,6 +58,12 @@ class User(Base):
     
     # クエスト: 最後にレコメンドクエストを完了した時刻
     last_recommend_quest_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # ミッション: ログインボーナス関連
+    last_login_bonus_at = Column(DateTime(timezone=True), nullable=True)  # 最後にログインボーナスを受け取った時刻
+    login_streak = Column(Integer, default=0)  # 連続ログイン日数
+    total_login_days = Column(Integer, default=0)  # 累計ログイン日数
+    last_weekly_likes_at = Column(DateTime(timezone=True), nullable=True)  # 週間いいねボーナス受取時刻
 
     # 現在セットしているペルソナID
     current_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
@@ -304,3 +310,24 @@ class UserCoupon(Base):
 
 # User へ逆参照を追加
 User.coupons = relationship("UserCoupon", back_populates="user")
+
+
+# --- 11. UserMission Model (ワンタイムミッション管理) ---
+class UserMission(Base):
+    __tablename__ = "user_missions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    
+    # ミッションキー: "first_listing", "first_purchase", "login_streak_3" など
+    mission_key = Column(String(50), index=True)
+    
+    # 達成日時
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # リレーション
+    user = relationship("User", back_populates="missions")
+
+
+# User へ逆参照を追加
+User.missions = relationship("UserMission", back_populates="user")
