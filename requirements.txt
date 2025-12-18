@@ -11,3 +11,4 @@ janome
 google-genai
 google-auth
 requests
+pytz
