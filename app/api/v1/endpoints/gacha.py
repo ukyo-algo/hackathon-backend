@@ -1,146 +1,201 @@
 # hackathon-backend/app/api/v1/endpoints/gacha.py
+"""
+ガチャシステム API エンドポイント
+- ガチャを引く（クーポン適用可能）
+- 使用可能なクーポン一覧
+"""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from app.schemas.gacha import GachaResponse
 import random
+from typing import Optional
 
 from app.db.database import get_db
 from app.api.v1.endpoints.users import get_current_user
 from app.db import models
-from app.schemas import user as user_schema
+from app.schemas.gacha import GachaResponse
+from app.schemas.user import PersonaBase
+from app.db.data.personas import SKILL_DEFINITIONS
+from app.services.mission_service import (
+    get_valid_coupon,
+    use_coupon,
+    get_available_coupons,
+    get_user_persona_level,
+)
+
 
 router = APIRouter()
 
+# ガチャ設定
+BASE_GACHA_COST = 100
+GACHA_PROBABILITIES = {1: 0.40, 2: 0.30, 3: 0.15, 4: 0.10, 5: 0.05}
+DUPLICATE_FRAGMENTS = {1: 5, 2: 15, 3: 30, 4: 50, 5: 100}
 
-"""Pydanticスキーマはapp/schemas/gacha.pyへ移動"""
+
+@router.get("/available-coupons")
+def get_available_gacha_coupons(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """ガチャに使用可能なクーポン一覧を取得"""
+    
+    coupons = get_available_coupons(db, current_user.id, "gacha_discount")
+    
+    return {
+        "coupons": [
+            {
+                "id": c.id,
+                "discount_percent": c.discount_percent,
+                "expires_at": c.expires_at.isoformat() if c.expires_at else None,
+            }
+            for c in coupons
+        ]
+    }
 
 
 @router.post("/draw", response_model=GachaResponse)
 def draw_gacha(
+    coupon_id: Optional[int] = Query(None, description="使用するクーポンID"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    ガチャを引くエンドポイント。
-    100ガチャポイント消費。
-    """
-    # 1. ガチャポイント消費ロジック
-    GACHA_COST = 100
-    if (current_user.gacha_points or 0) < GACHA_COST:
+    """ガチャを引くエンドポイント（クーポン適用可能）"""
+    
+    # 1. クーポン適用チェック
+    discount_percent = 0
+    used_coupon = None
+    
+    if coupon_id:
+        coupon = get_valid_coupon(db, coupon_id, current_user.id, "gacha_discount")
+        if not coupon:
+            raise HTTPException(
+                status_code=400,
+                detail="このクーポンは使用できません（期限切れまたは既に使用済み）"
+            )
+        discount_percent = coupon.discount_percent
+        used_coupon = coupon
+    
+    # 2. コスト計算＆ポイントチェック
+    discount_amount = BASE_GACHA_COST * discount_percent // 100
+    final_cost = BASE_GACHA_COST - discount_amount
+    
+    if (current_user.gacha_points or 0) < final_cost:
         raise HTTPException(
             status_code=400, 
-            detail=f"ガチャポイントが足りません（必要: {GACHA_COST}ポイント、所持: {current_user.gacha_points or 0}ポイント）"
+            detail=f"ガチャポイントが足りません（必要: {final_cost}pt、所持: {current_user.gacha_points or 0}pt）"
         )
-    current_user.gacha_points = (current_user.gacha_points or 0) - GACHA_COST
+    
+    # 3. ポイント消費
+    current_user.gacha_points = (current_user.gacha_points or 0) - final_cost
+    
+    if used_coupon:
+        use_coupon(used_coupon)
 
-    # 2. 排出ロジック (レアリティに基づく重み付け抽選)
+    # 4. ペルソナ抽選
+    drawn_persona = _draw_persona(db)
+
+    # 5. ユーザーへの付与処理
+    result = _apply_gacha_result(db, current_user, drawn_persona, discount_percent)
+    
+    db.commit()
+    
+    return result
+
+
+def _draw_persona(db: Session) -> models.AgentPersona:
+    """ペルソナを抽選する"""
     all_personas = db.query(models.AgentPersona).all()
     if not all_personas:
         raise HTTPException(status_code=500, detail="排出対象のキャラクターがいません")
-    # --- GACHA_PROBABILITIESと同じ値をサーバー側にも定義 ---
-    GACHA_PROBABILITIES = {
-        1: 0.40,
-        2: 0.30,
-        3: 0.15,
-        4: 0.10,
-        5: 0.05,
-    }
-
+    
     # レアリティごとの候補リストを作成
     rarity_to_personas = {}
     for p in all_personas:
         rarity_to_personas.setdefault(p.rarity, []).append(p)
-
-    # 確率リストとレアリティリストを作成
+    
+    # まずレアリティを抽選
     rarities = list(GACHA_PROBABILITIES.keys())
     probabilities = [GACHA_PROBABILITIES[r] for r in rarities]
-
-    # まずレアリティを抽選
     drawn_rarity = random.choices(rarities, weights=probabilities, k=1)[0]
+    
     # そのレアリティの中からランダムに1つ選ぶ
-    drawn_persona = random.choice(rarity_to_personas[drawn_rarity])
+    return random.choice(rarity_to_personas[drawn_rarity])
 
-    # 3. ユーザーへの付与処理
-    user_persona = (
-        db.query(models.UserPersona)
-        .filter(
-            models.UserPersona.user_id == current_user.id,
-            models.UserPersona.persona_id == drawn_persona.id,
-        )
-        .first()
-    )
+
+def _apply_gacha_result(
+    db: Session,
+    user: models.User,
+    persona: models.AgentPersona,
+    discount_percent: int,
+) -> dict:
+    """ガチャ結果をユーザーに適用し、レスポンスを生成"""
+    
+    user_persona = db.query(models.UserPersona).filter(
+        models.UserPersona.user_id == user.id,
+        models.UserPersona.persona_id == persona.id,
+    ).first()
 
     is_new = False
     stack_count = 1
     fragments_earned = 0
-
-    # レアリティ別の記憶のかけら基本値
-    DUPLICATE_FRAGMENTS = {
-        1: 5,    # ノーマル被り → 5個
-        2: 15,   # レア被り → 15個
-        3: 30,   # スーパーレア被り → 30個
-        4: 50,   # ウルトラレア被り → 50個
-        5: 100,  # チャンピョン被り → 100個
-    }
 
     if user_persona:
         # 既に持っている場合 -> スタック数を増やす & 記憶のかけら付与
         user_persona.stack_count += 1
         stack_count = user_persona.stack_count
         
-        # 基本の記憶のかけら付与
-        base_fragments = DUPLICATE_FRAGMENTS.get(drawn_persona.rarity, 5)
-        
-        # スキルボーナス計算（gacha_duplicate_fragments タイプのスキル）
-        from app.db.data.personas import SKILL_DEFINITIONS
-        skill_bonus = 0
-        if current_user.current_persona_id:
-            skill_def = SKILL_DEFINITIONS.get(current_user.current_persona_id)
-            if skill_def and skill_def.get("skill_type") == "gacha_duplicate_fragments":
-                # 現在のペルソナのレベルを取得
-                current_up = db.query(models.UserPersona).filter(
-                    models.UserPersona.user_id == current_user.id,
-                    models.UserPersona.persona_id == current_user.current_persona_id,
-                ).first()
-                level = current_up.level if current_up else 1
-                # Lv1で base_value、Lv10で max_value
-                base_val = skill_def.get("base_value", 0)
-                max_val = skill_def.get("max_value", 0)
-                skill_bonus = base_val + int((max_val - base_val) * (level - 1) / 9)
-        
+        # 記憶のかけら付与
+        base_fragments = DUPLICATE_FRAGMENTS.get(persona.rarity, 5)
+        skill_bonus = _calculate_fragment_bonus(db, user)
         fragments_earned = base_fragments + skill_bonus
-        current_user.memory_fragments = (current_user.memory_fragments or 0) + fragments_earned
+        user.memory_fragments = (user.memory_fragments or 0) + fragments_earned
         
-        message = f"{drawn_persona.name}が被りました！(所持数: {stack_count}) 💎記憶のかけら +{fragments_earned}個！"
+        message = f"{persona.name}が被りました！(所持数: {stack_count}) 💎記憶のかけら +{fragments_earned}個！"
     else:
         # 新規入手
         new_up = models.UserPersona(
-            user_id=current_user.id, persona_id=drawn_persona.id, stack_count=1
+            user_id=user.id, persona_id=persona.id, stack_count=1
         )
         db.add(new_up)
         is_new = True
-        message = f"やった！{drawn_persona.name}をゲットしました！"
-
-    db.commit()
-
-    # persona情報をPydanticモデルで返す（rarity_nameを追加）
-    from app.schemas.user import PersonaBase
+        message = f"やった！{persona.name}をゲットしました！"
+    
+    if discount_percent > 0:
+        message = f"🎟️ {discount_percent}%OFFクーポン適用！ " + message
 
     persona_out = PersonaBase(
-        id=drawn_persona.id,
-        name=drawn_persona.name,
-        avatar_url=drawn_persona.avatar_url,
-        description=drawn_persona.description,
-        theme_color=drawn_persona.theme_color,
-        rarity=drawn_persona.rarity,
-        rarity_name=drawn_persona.rarity_name,
+        id=persona.id,
+        name=persona.name,
+        avatar_url=persona.avatar_url,
+        description=persona.description,
+        theme_color=persona.theme_color,
+        rarity=persona.rarity,
+        rarity_name=persona.rarity_name,
     )
+    
     return {
         "persona": persona_out,
         "is_new": is_new,
         "stack_count": stack_count,
         "message": message,
         "fragments_earned": fragments_earned,
-        "total_memory_fragments": current_user.memory_fragments or 0,
+        "total_memory_fragments": user.memory_fragments or 0,
+        "cost": BASE_GACHA_COST - (BASE_GACHA_COST * discount_percent // 100),
+        "discount_applied": discount_percent,
     }
+
+
+def _calculate_fragment_bonus(db: Session, user: models.User) -> int:
+    """スキルボーナスによる記憶のかけら追加分を計算"""
+    if not user.current_persona_id:
+        return 0
+    
+    skill_def = SKILL_DEFINITIONS.get(user.current_persona_id)
+    if not skill_def or skill_def.get("skill_type") != "gacha_duplicate_fragments":
+        return 0
+    
+    level = get_user_persona_level(db, user.id, user.current_persona_id)
+    base_val = skill_def.get("base_value", 0)
+    max_val = skill_def.get("max_value", 0)
+    
+    return base_val + int((max_val - base_val) * (level - 1) / 9)

@@ -61,12 +61,13 @@ hackathon-backend/
 ├── app/
 │   ├── main.py                    # 🚀 FastAPI起動ファイル
 │   │
-│   ├── api/v1/endpoints/          # 📡 APIエンドポイント (9ファイル)
+│   ├── api/v1/endpoints/          # 📡 APIエンドポイント (10ファイル)
 │   │   ├── users.py               # ユーザー管理 (9 API)
-│   │   ├── items.py               # 商品管理 (7 API)
+│   │   ├── items.py               # 商品管理 (8 API)
 │   │   ├── transactions.py        # 取引管理 (3 API)
 │   │   ├── chat.py                # AIチャット (1 API)
-│   │   ├── gacha.py               # ガチャ (1 API)
+│   │   ├── gacha.py               # ガチャ (2 API)
+│   │   ├── mission.py             # ミッション＆クーポン (8 API)
 │   │   ├── llm.py                 # LLMコンテキスト (2 API)
 │   │   ├── recommend.py           # おすすめ (1 API)
 │   │   ├── rewards.py             # 報酬 (1 API)
@@ -84,10 +85,14 @@ hackathon-backend/
 │   │   ├── user.py, item.py       # リクエスト/レスポンス型
 │   │   └── ...
 │   │
-│   └── services/                  # 🧠 ビジネスロジック
-│       ├── llm_service.py         # Gemini連携
-│       ├── llm_base.py            # LLM共通処理
-│       └── prompts.py             # AIプロンプト定義
+│   ├── services/                  # 🧠 ビジネスロジック
+│   │   ├── llm_service.py         # Gemini連携
+│   │   ├── llm_base.py            # LLM共通処理
+│   │   ├── mission_service.py     # ミッション・クーポン処理
+│   │   └── prompts.py             # AIプロンプト定義
+│   │
+│   └── utils/                     # 🔧 共通ユーティリティ
+│       └── time_utils.py          # JST時間処理
 │
 ├── requirements.txt               # 📦 依存ライブラリ
 └── Dockerfile                     # 🐳 コンテナ設定
@@ -181,7 +186,8 @@ erDiagram
 | `GET` | `/` | 全商品一覧（販売中） | 不要 |
 | `GET` | `/{item_id}` | 商品詳細取得 | 不要 |
 | `POST` | `/` | 新規商品出品 | 必要 |
-| `POST` | `/{item_id}/buy` | 商品購入 | 必要 |
+| `POST` | `/{item_id}/buy?coupon_id=X` | 商品購入（クーポン適用可） | 必要 |
+| `GET` | `/{item_id}/available-coupons` | 使用可能な送料クーポン一覧 | 必要 |
 | `POST` | `/{item_id}/like` | いいね登録/解除 | 必要 |
 | `POST` | `/{item_id}/comments` | コメント投稿 | 必要 |
 | `GET` | `/{item_id}/recommend` | 類似商品レコメンド | 不要 |
@@ -210,7 +216,8 @@ stateDiagram-v2
 
 | メソッド | パス | 説明 |
 |----------|------|------|
-| `POST` | `/draw` | ガチャを1回引く |
+| `GET` | `/available-coupons` | 使用可能なガチャクーポン一覧 |
+| `POST` | `/draw?coupon_id=X` | ガチャを1回引く（クーポン適用可） |
 
 **レアリティ排出率:**
 | レアリティ | 確率 |
@@ -220,6 +227,10 @@ stateDiagram-v2
 | スーパーレア (★3) | 15% |
 | ウルトラレア (★4) | 10% |
 | チャンピオン (★5) | 5% |
+
+**クーポン適用:**
+- `gacha_discount` タイプのクーポンで割引可能
+- 例: 15%OFFクーポン → 100pt → 85pt
 
 ---
 
@@ -276,6 +287,37 @@ stateDiagram-v2
 |----------|------|------|
 | `POST` | `/context` | ページ遷移時のAIガイダンス取得 |
 | `POST` | `/function` | Function Calling実行 |
+
+---
+
+### 10. 🎯 ミッション＆クーポン (`/api/v1/mission`)
+
+| メソッド | パス | 説明 |
+|----------|------|------|
+| `GET` | `/missions` | 全ミッション状況取得 |
+| `GET` | `/coupons` | 所持クーポン一覧 |
+| `POST` | `/daily-login/claim` | デイリーログインボーナス受取 |
+| `POST` | `/daily-coupon/claim` | デイリークーポン受取 |
+| `POST` | `/first-listing/claim` | 初出品ボーナス受取 |
+| `POST` | `/first-purchase/claim` | 初購入ボーナス受取 |
+| `POST` | `/login-streak/claim` | 連続ログイン3日ボーナス受取 |
+| `POST` | `/weekly-likes/claim` | 週間いいね5回ボーナス受取 |
+
+**ミッション報酬一覧:**
+| ミッション | 報酬 | リセット |
+|-----------|------|---------|
+| デイリーログイン | 🎫 50pt | 毎日 |
+| デイリークーポン | 🎟️ クーポン | 毎日 |
+| 初めての出品 | 🎫 200pt | 一回限り |
+| 初めての購入 | 🎫 200pt | 一回限り |
+| 連続ログイン3日 | 🎫 100pt + クーポン | 一回限り |
+| 週間いいね5回 | 🎫 30pt | 毎週 |
+
+**クーポン種別:**
+| タイプ | 効果 | 使用場面 |
+|-------|------|---------|
+| `shipping_discount` | 送料〇%OFF | 商品購入時 |
+| `gacha_discount` | ガチャ〇%OFF | ガチャ実行時 |
 
 ---
 
