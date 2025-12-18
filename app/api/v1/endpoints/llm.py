@@ -62,8 +62,26 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
     if not context_text:
         context_text = _build_legacy_context(db, user, path, query)
     
-    # --- プロンプト構築 ---
-    prompt = f"""
+    # --- プロンプト構築（ページタイプに応じて指示を変える） ---
+    page_type = page_context_raw.get("page_type") if page_context_raw else None
+    
+    if page_type == "gacha_result":
+        # ガチャ結果時：引いたキャラについてコメント
+        prompt = f"""
+{context_text}
+
+ユーザーがガチャを引きました！上記の結果を見てください。
+引いたキャラクターについて、キャラクターとして以下のいずれかのリアクションをしてください：
+- 新規獲得なら祝福する
+- レアリティが高ければ興奮する
+- 重複なら「また会えたね」的なコメント
+- キャラの名前やレアリティに応じた個性的なコメント
+
+汎用的な説明は避け、具体的なキャラ名に言及してください。
+"""
+    else:
+        # 通常のページ遷移
+        prompt = f"""
 {context_text}
 
 ユーザーがページ「{path}{q_info}」を開きました。
@@ -79,10 +97,10 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
         reply = result.get("reply")
         persona = result.get("persona")
         
-        # ガイダンスをDB履歴に保存
-        if uid:
+        # ガイダンスをDB履歴に保存（replyを保存する、context_textではない）
+        if uid and reply:
             try:
-                llm_svc.add_guidance(uid, context_text)
+                llm_svc.add_guidance(uid, reply)
             except Exception:
                 pass
                 

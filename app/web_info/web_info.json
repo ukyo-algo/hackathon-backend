@@ -32,6 +32,10 @@
             "path": "/gacha"
           },
           {
+            "label": "ミッション",
+            "path": "/mission"
+          },
+          {
             "label": "売品の状況",
             "path": "/seller"
           },
@@ -52,7 +56,8 @@
       "related": [
         "/search",
         "/items/create",
-        "/mypage"
+        "/mypage",
+        "/mission"
       ]
     },
     {
@@ -71,14 +76,6 @@
         "商品の詳細を確認",
         "価格や状態で比較"
       ],
-      "ui": {
-        "list_actions": [
-          {
-            "action": "商品カードをクリック",
-            "result": "/items/:itemId へ移動"
-          }
-        ]
-      },
       "related": [
         "/items/:itemId",
         "/"
@@ -101,7 +98,6 @@
       "suggested_actions": [
         "画像をアップロード",
         "カテゴリ・状態を設定",
-        "クイックモードの可否を選択",
         "出品するをクリック"
       ],
       "related": [
@@ -137,11 +133,6 @@
             "label": "売り切れました",
             "visible_when": "販売済み",
             "disabled": true
-          },
-          {
-            "label": "自分で出品した商品です",
-            "visible_when": "自分の出品",
-            "disabled": true
           }
         ],
         "like": {
@@ -150,12 +141,7 @@
         },
         "comments": {
           "input": "テキスト送信",
-          "submit_icon": "紙飛行機",
-          "counter": "コメント数表示"
-        },
-        "recommend": {
-          "section": "こちらもおすすめ",
-          "card_click": "詳細へ遷移"
+          "submit_icon": "紙飛行機"
         }
       },
       "related": [
@@ -166,7 +152,7 @@
     {
       "path": "/buy/:itemId",
       "name": "購入手続き",
-      "purpose": "対象商品の購入フローに進む。配送先や支払い方法の確認など。",
+      "purpose": "対象商品の購入フローに進む。配送先や支払い方法の確認など。クーポンを使って送料を割引可能。",
       "params": [
         {
           "name": "itemId",
@@ -176,12 +162,18 @@
       ],
       "suggested_actions": [
         "配送先の確認",
-        "支払い方法の選択",
+        "送料割引クーポンを選択",
         "購入確定"
       ],
+      "ui": {
+        "coupon_selector": {
+          "note": "所持している送料割引クーポンを選択可能。適用すると送料が割引される。"
+        }
+      },
       "related": [
         "/items/:itemId",
-        "/buyer"
+        "/buyer",
+        "/mission"
       ]
     },
     {
@@ -190,8 +182,7 @@
       "purpose": "出品中/発送待ち/発送済みなど、出品者としての取引進捗を一覧で確認。",
       "suggested_actions": [
         "発送準備のチェック",
-        "購入者への連絡",
-        "価格調整や公開設定の更新"
+        "購入者への連絡"
       ],
       "ui": {
         "transactions": {
@@ -202,8 +193,7 @@
           "buttons": [
             {
               "label": "発送しました",
-              "enabled_when": "pending_shipment",
-              "action": "POST /api/v1/transactions/{id}/ship"
+              "enabled_when": "pending_shipment"
             },
             {
               "label": "発送済み",
@@ -227,8 +217,7 @@
       "purpose": "購入済み商品の配送状況やメッセージ、受取確認などを一覧で確認。",
       "suggested_actions": [
         "配送状況を確認",
-        "受取連絡",
-        "出品者に質問"
+        "受取連絡"
       ],
       "ui": {
         "transactions": {
@@ -239,8 +228,7 @@
           "buttons": [
             {
               "label": "受け取りました",
-              "enabled_when": "in_transit",
-              "action": "POST /api/v1/transactions/{id}/complete"
+              "enabled_when": "in_transit"
             },
             {
               "label": "受取済み",
@@ -258,67 +246,154 @@
     {
       "path": "/mypage",
       "name": "マイページ",
-      "purpose": "自分のプロフィール、利用状況、所持ペルソナ、ポイント等の管理。",
+      "purpose": "自分のプロフィール、利用状況、所持ペルソナ、ガチャポイント等の管理。ミッションへのリンクもある。",
       "suggested_actions": [
         "プロフィール編集",
-        "通知の確認",
-        "出品・購入履歴の確認"
+        "ミッションを確認",
+        "ガチャポイント残高を確認"
       ],
+      "ui": {
+        "tabs": [
+          "出品した商品",
+          "購入した商品"
+        ],
+        "stats": [
+          "ガチャポイント残高",
+          "保有クーポン数"
+        ]
+      },
       "related": [
         "/seller",
         "/buyer",
-        "/persona-selection"
+        "/persona-selection",
+        "/mission",
+        "/gacha"
       ]
     },
     {
       "path": "/persona-selection",
       "name": "キャラ選択",
-      "purpose": "アシスタントのキャラクター(ペルソナ)を選択/変更。以降の案内のスタイルに反映。",
+      "purpose": "アシスタントのキャラクター(ペルソナ)を選択/変更。レアリティ別に表示。レベルアップも可能。",
       "suggested_actions": [
         "キャラを選ぶ",
-        "プレビューを確認"
+        "レベルアップする（メモリーフラグメント消費）"
       ],
+      "ui": {
+        "persona_card": {
+          "fields": [
+            "名前",
+            "レアリティ",
+            "レベル",
+            "スキル"
+          ],
+          "actions": [
+            "選択する",
+            "レベルアップ"
+          ]
+        },
+        "levelup": {
+          "note": "メモリーフラグメントを消費してレベルアップ。レベルが上がるとスキル効果が上昇。"
+        }
+      },
       "related": [
-        "/mypage"
+        "/mypage",
+        "/gacha"
       ]
     },
     {
       "path": "/gacha",
       "name": "ガチャ",
-      "purpose": "新しいペルソナ(キャラ)を獲得するガチャ。1回100ポイントで回せます。",
+      "purpose": "新しいペルソナ(キャラ)を獲得するガチャ。1回100ポイントで回せます。クーポンで割引可能。",
       "ui": {
         "draw_button": {
           "label": "ガチャを回す",
-          "action": "POST /gacha/draw"
+          "cost": "100ポイント（クーポン適用可）"
         },
-        "loading": {
-          "label": "召喚中...",
-          "spinner": true
+        "coupon_selector": {
+          "note": "ガチャ割引クーポンを選択可能"
         },
         "result": {
           "fields": [
-            "message",
-            "persona.name",
-            "persona.avatar_url",
-            "persona.rarity(★の数)",
-            "persona.rarity_name(任意)",
-            "is_new",
-            "stack_count(重複時)"
+            "キャラ名",
+            "レアリティ",
+            "★新規/重複",
+            "獲得メモリーフラグメント"
           ],
           "actions": [
-            {
-              "label": "もう一度回す",
-              "action": "結果クリアして再度ガチャ"
-            },
-            {
-              "label": "マイページへ戻る",
-              "navigates_to": "/mypage"
-            }
+            "もう一度回す",
+            "マイページへ戻る"
           ]
         }
       },
       "related": [
-        "/mypage"
+        "/mypage",
+        "/mission"
+      ]
+    },
+    {
+      "path": "/mission",
+      "name": "ミッション",
+      "purpose": "デイリーミッションや達成報酬を確認・受け取り。ガチャポイントやクーポンを獲得可能。",
+      "ui": {
+        "missions": [
+          {
+            "id": "daily_login",
+            "name": "デイリーログインボーナス",
+            "reward": "50ポイント",
+            "reset": "毎日"
+          },
+          {
+            "id": "daily_coupon",
+            "name": "デイリークーポン受取",
+            "reward": "送料/ガチャ割引クーポン",
+            "reset": "毎日",
+            "requires": "ペルソナ装備"
+          },
+          {
+            "id": "first_listing",
+            "name": "初めての出品",
+            "reward": "200ポイント",
+            "reset": "一回限り"
+          },
+          {
+            "id": "first_purchase",
+            "name": "初めての購入",
+            "reward": "200ポイント",
+            "reset": "一回限り"
+          },
+          {
+            "id": "login_streak_3",
+            "name": "連続ログイン3日",
+            "reward": "100ポイント + ガチャクーポン",
+            "reset": "一回限り"
+          },
+          {
+            "id": "weekly_likes",
+            "name": "週間いいね5回",
+            "reward": "30ポイント",
+            "reset": "毎週"
+          }
+        ],
+        "coupons": {
+          "section": "所持クーポン一覧",
+          "fields": [
+            "クーポン種別",
+            "割引率",
+            "有効期限"
+          ]
+        },
+        "cooldown": {
+          "note": "達成済みのデイリーミッションは『あと◯時間で獲得可能』と表示される"
+        }
+      },
+      "suggested_actions": [
+        "ミッションを達成",
+        "報酬を受け取る",
+        "クーポンを確認"
+      ],
+      "related": [
+        "/mypage",
+        "/gacha"
       ]
     },
     {
@@ -346,6 +421,63 @@
       ]
     }
   ],
+  "game_systems": {
+    "gacha_points": {
+      "description": "ガチャを回すための通貨。ミッション報酬や購入報酬で獲得。",
+      "earn_methods": [
+        "デイリーログインボーナス: 50pt/日",
+        "初出品ボーナス: 200pt",
+        "初購入ボーナス: 200pt",
+        "連続ログイン3日: 100pt",
+        "週間いいね5回: 30pt",
+        "商品購入時の報酬: 価格×1.5%（ペルソナスキルでボーナスあり）"
+      ],
+      "usage": "ガチャ1回: 100pt（クーポンで割引可能）"
+    },
+    "coupons": {
+      "types": [
+        {
+          "type": "shipping_discount",
+          "name": "送料割引クーポン",
+          "usage": "購入時に送料を割引"
+        },
+        {
+          "type": "gacha_discount",
+          "name": "ガチャ割引クーポン",
+          "usage": "ガチャのポイント消費を割引"
+        }
+      ],
+      "earn_methods": [
+        "デイリークーポン受取（装備ペルソナに依存）",
+        "連続ログイン3日達成"
+      ],
+      "expiry": "有効期限あり（取得時に設定）"
+    },
+    "personas": {
+      "description": "AIアシスタントのキャラクター。ガチャで獲得。",
+      "rarities": [
+        "ノーマル",
+        "レア",
+        "スーパーレア",
+        "ウルトラレア",
+        "チャンピョン"
+      ],
+      "skills": {
+        "description": "ペルソナごとに固有スキルがある",
+        "effects": [
+          "購入報酬ボーナス（ポイント増加）",
+          "クーポン効果強化（割引率UP/有効期限延長）"
+        ],
+        "levelup": "メモリーフラグメントを消費してレベルアップ。スキル効果が上昇。"
+      },
+      "memory_fragments": {
+        "description": "ペルソナのレベルアップに使用する素材",
+        "earn_methods": [
+          "ガチャで重複キャラを引いた時に獲得"
+        ]
+      }
+    }
+  },
   "guidance": {
     "notes": [
       "LLMはリンク説明時に、パスの種類(path, query)を区別する(例: /items/:itemId はパス、/search?q= はクエリ)",
@@ -354,7 +486,10 @@
       "リンクは正確なパス形式で示す(例: /seller, /buyer, /items/123, /search?q=靴)",
       "検索バーはEnterまたは虫眼鏡クリックで /search?q= に遷移することを明示する",
       "ボタンの有効条件(例: 出品者の『発送しました』は pending_shipment のみ)を踏まえて具体的に案内する",
-      "LLMのキャラクターの性格や口調を尊重し，ユーザーが楽しめる会話（無難すぎない会話）を心がける"
+      "LLMのキャラクターの性格や口調を尊重し，ユーザーが楽しめる会話（無難すぎない会話）を心がける",
+      "ガチャポイントは『pt』や『ポイント』と表現する（コインではない）",
+      "ミッションの達成状況やクーポン所持状況に応じて、適切なアドバイスをする",
+      "デイリーミッションにはクールタイムがあり、翌日0時にリセットされることを伝える"
     ]
   }
 }

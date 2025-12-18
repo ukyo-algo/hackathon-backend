@@ -377,6 +377,9 @@ def get_missions(
     
     missions = []
     
+    # 明日の0時を計算（クールタイム表示用）
+    tomorrow_midnight = datetime.combine(today + timedelta(days=1), datetime.min.time()).replace(tzinfo=JST)
+    
     # 1. デイリーログインボーナス
     daily_login_completed = is_same_day_jst(current_user.last_login_bonus_at)
     missions.append({
@@ -387,6 +390,7 @@ def get_missions(
         "claimable": not daily_login_completed,
         "reward": {"gacha_points": 50},
         "reset": "daily",
+        "next_available_at": tomorrow_midnight.isoformat() if daily_login_completed else None,
     })
     
     # 2. デイリークーポン
@@ -425,6 +429,7 @@ def get_missions(
         "reward_preview": expected_coupon,
         "reset": "daily",
         "requires_persona": True,
+        "next_available_at": tomorrow_midnight.isoformat() if today_coupon else None,
     })
     
     # 3. 初めての出品

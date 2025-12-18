@@ -30,13 +30,20 @@ class ItemContext(BaseModel):
 
 class PageContext(BaseModel):
     """ページコンテキスト"""
-    page_type: str  # "homepage" | "item_detail" | "search" | "mypage" | "gacha" | etc.
+    page_type: str  # "homepage" | "item_detail" | "search" | "mypage" | "gacha" | "gacha_result" | etc.
     current_item: Optional[ItemContext] = None
     visible_items: Optional[List[ItemContext]] = None
     search_query: Optional[str] = None
     user_gacha_points: Optional[int] = None  # 旧名: user_coins
     owned_persona_names: Optional[List[str]] = None
     additional_info: Optional[Dict[str, Any]] = None
+    # ガチャ結果用フィールド
+    result_persona_name: Optional[str] = None
+    result_rarity: Optional[int] = None
+    result_rarity_name: Optional[str] = None
+    result_is_new: Optional[bool] = None
+    result_stack_count: Optional[int] = None
+    fragments_earned: Optional[int] = None
 
 
 class ContextRequest(BaseModel):
@@ -68,12 +75,28 @@ def build_context_text(page_context: Optional[PageContext]) -> str:
         "search": "検索結果ページ",
         "mypage": "マイページ",
         "gacha": "ガチャページ",
+        "gacha_result": "ガチャ結果",
         "persona_selection": "キャラクター選択ページ",
         "seller": "出品管理ページ",
         "buyer": "購入管理ページ",
     }
     page_name = page_type_names.get(page_context.page_type, page_context.page_type)
     lines.append(f"【現在のページ】{page_name}")
+    
+    # ガチャ結果（新規追加）
+    if page_context.page_type == "gacha_result" and page_context.result_persona_name:
+        lines.append("")
+        lines.append("【ガチャ結果】")
+        lines.append(f"  引いたキャラクター: {page_context.result_persona_name}")
+        if page_context.result_rarity_name:
+            lines.append(f"  レアリティ: {page_context.result_rarity_name}")
+        if page_context.result_is_new:
+            lines.append("  ★新規獲得！")
+        else:
+            if page_context.result_stack_count:
+                lines.append(f"  重複: {page_context.result_stack_count}体目")
+            if page_context.fragments_earned:
+                lines.append(f"  メモリーフラグメント獲得: +{page_context.fragments_earned}")
     
     # 検索クエリ
     if page_context.search_query:
