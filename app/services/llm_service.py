@@ -30,16 +30,9 @@ class LLMService(LLMBase):
         ] = None,  # 外部履歴は受け取るが使用しない（LLMServiceで一元管理）
         is_visible: bool = True,  # UI表示フラグ
     ) -> dict:
-        # ... (中略) ...
-
-            # 生成後に今回の発話とAI応答をDB履歴へ追加
-            if save_history:
-                self._save_message(
-                    user_id=user_id, role="user", content=current_chat, mtype="chat"
-                )
-                self._save_message(
-                    user_id=user_id, role="ai", content=reply_text, mtype="chat"
-                )        persona_info = {
+        # ユーザーと現在セット中のキャラを取得し、system_instructionとpersona_infoを準備
+        current_persona = None
+        persona_info = {
             "name": "AIアシスタント",
             "avatar_url": "/avatars/default.png",
             "theme": "default",
