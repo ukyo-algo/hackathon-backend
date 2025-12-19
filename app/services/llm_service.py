@@ -29,6 +29,7 @@ class LLMService(LLMBase):
             dict
         ] = None,  # 外部履歴は受け取るが使用しない（LLMServiceで一元管理）
         is_visible: bool = True,  # UI表示フラグ
+        force_persona_id: int = None, # ペルソナIDを強制指定
     ) -> dict:
         # ユーザーと現在セット中のキャラを取得し、system_instructionとpersona_infoを準備
         current_persona = None
@@ -52,7 +53,12 @@ class LLMService(LLMBase):
         except Exception:
             user = None
 
-        if user and user.current_persona:
+        if force_persona_id:
+             # 強制指定されたペルソナを使用
+            forced = self.db.query(models.AgentPersona).filter(models.AgentPersona.id == force_persona_id).first()
+            if forced:
+                current_persona = forced
+        elif user and user.current_persona:
             current_persona = user.current_persona
         elif user:
             # 所持ペルソナの先頭を自動セット、なければデフォルト(1)

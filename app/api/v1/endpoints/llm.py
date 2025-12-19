@@ -201,10 +201,16 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 
     llm_svc = get_llm_service(db)
     try:
+        # ペルソナ選択時は、選択されたペルソナIDを強制的に使用してチャット生成
+        force_pid = None
+        if page_type == "persona_selection":
+            force_pid = page_context_raw.get("additional_info", {}).get("selected_persona_id")
+        
         result = llm_svc.chat_with_persona(
             user_id=uid or "", 
             current_chat=prompt,
-            is_visible=False  # コンテキスト生成用プロンプトはUIには表示しない
+            is_visible=False,  # コンテキスト生成用プロンプトはUIには表示しない
+            force_persona_id=force_pid
         )
         reply = result.get("reply")
         persona = result.get("persona")
