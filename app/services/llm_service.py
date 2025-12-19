@@ -371,10 +371,18 @@ class LLMService(LLMBase):
                 response_text = response_text.split("```")[1].split("```")[0]
             
             try:
-                name_to_reason = json.loads(response_text.strip())
+                parsed_response = json.loads(response_text.strip())
             except Exception as e:
                 print(f"DEBUG: JSON decode failed: {e}")
-                name_to_reason = {}
+                parsed_response = {}
+            
+            # 新フォーマット: {"intro_message": "...", "reasons": {...}}
+            intro_message = parsed_response.get("intro_message", "おすすめの商品です！")
+            name_to_reason = parsed_response.get("reasons", {})
+            
+            # 旧フォーマット互換（reasonsがない場合は全体をreasonsとして扱う）
+            if not name_to_reason and "intro_message" not in parsed_response:
+                name_to_reason = parsed_response
             
             # 商品名からitem_idにマッピング
             for it in items:
@@ -388,8 +396,10 @@ class LLMService(LLMBase):
                             item_reasons[it["item_id"]] = reason
                             break
             print(f"DEBUG: Generated reasons: {item_reasons}")
+            print(f"DEBUG: Intro message: {intro_message}")
         except Exception as e:
             print(f"⚠️ reason generation failed: {e}")
+            intro_message = "おすすめの商品です！"
 
         # 履歴に保存（log_interactionを使用）
         self.log_interaction(user_id, "recommend", {
@@ -403,6 +413,7 @@ class LLMService(LLMBase):
             "can_recommend": True,
             "items": items,
             "reasons": item_reasons,  # {item_id: reason}
+            "intro_message": intro_message,  # ペルソナの口調での紹介文
             "keyword": keyword,
             "mode": mode,
             "persona": persona_info,

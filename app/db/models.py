@@ -331,3 +331,27 @@ class UserMission(Base):
 
 # User へ逆参照を追加
 User.missions = relationship("UserMission", back_populates="user")
+
+
+# --- 12. Notification Model (通知) ---
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)  # 通知を受け取るユーザー
+    
+    # 通知タイプ: "comment", "purchase", "like" など
+    type = Column(String(50), index=True)
+    title = Column(String(255))
+    message = Column(Text)
+    link = Column(String(512))  # クリック時の遷移先
+    
+    is_read = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # リレーション
+    user = relationship("User", back_populates="notifications")
+
+
+# User へ逆参照を追加
+User.notifications = relationship("Notification", back_populates="user")

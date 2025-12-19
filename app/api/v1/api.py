@@ -10,6 +10,7 @@ from .endpoints import (
     recommend,
     rewards,
     mission,
+    notification,
 )  # LLM/Reco追加
 
 api_router = APIRouter()
@@ -37,4 +38,8 @@ api_router.include_router(
     mission.router,
     prefix="/mission",
     tags=["Mission"],
+)
+api_router.include_router(
+    notification.router,
+    tags=["Notifications"],
 )

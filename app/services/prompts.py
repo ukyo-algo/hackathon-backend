@@ -32,13 +32,14 @@ DEFAULT_SYSTEM_PROMPT = "あなたは親切なAIアシスタントです。優�
 
 def build_recommend_prompt(keyword: str, mode: str, items_text: str) -> str:
     """おすすめ商品の理由生成プロンプト"""
-    return f"""以下の商品をユーザーにおすすめする理由をJSON形式で出力してください。
+    return f"""以下の商品をユーザーにおすすめします。あなたのキャラクターの口調で、紹介文と各商品の理由をJSON形式で出力してください。
 
 【制約事項】
 1. 出力は必ず**validなJSONのみ**にしてください
-2. キーは「商品名」、値は「おすすめ理由」です
-3. おすすめ理由は**1文で短く**、「発言」として書いてください
-4. **「(心中)」や「内部思考」はJSONに含めないでください**
+2. "intro_message": おすすめを紹介する一言（キャラの口調で、1文）
+3. "reasons": 商品名をキー、おすすめ理由を値とするオブジェクト
+4. おすすめ理由は**1文で短く**、「発言」として書いてください
+5. **「(心中)」や「内部思考」はJSONに含めないでください**
 
 【キーワード/モード】{keyword or 'おすすめ'} ({mode})
 
@@ -47,8 +48,11 @@ def build_recommend_prompt(keyword: str, mode: str, items_text: str) -> str:
 
 【出力例】
 {{
-  "Nike Air Max": "ランニングに最適な一足だぜ！",
-  "MacBook Pro": "クリエイティブな作業にはこれが一番です。"
+  "intro_message": "お前に合いそうなアイテムを見つけてきたぜ！",
+  "reasons": {{
+    "Nike Air Max": "ランニングに最適な一足だぜ！",
+    "MacBook Pro": "クリエイティブな作業にはこれが一番です。"
+  }}
 }}
 """
 

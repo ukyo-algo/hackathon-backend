@@ -164,6 +164,18 @@ def buy_item(
     db.commit()
     db.refresh(transaction)
 
+    # 6. 出品者に購入通知を送信
+    if item.seller:
+        notification = models.Notification(
+            user_id=item.seller.id,
+            type="purchase",
+            title="商品が売れました！",
+            message=f"{current_user.username or 'ユーザー'}さんが「{item.name}」を購入しました",
+            link=f"/seller",
+        )
+        db.add(notification)
+        db.commit()
+
     return transaction
 
 
@@ -254,4 +266,17 @@ def create_comment(
     db.commit()
     db.refresh(new_comment)
 
+    # 自分の商品でなければ出品者に通知を送信
+    if item.seller_id != current_user.firebase_uid and item.seller:
+        notification = models.Notification(
+            user_id=item.seller.id,
+            type="comment",
+            title="新しいコメント",
+            message=f"{current_user.username or 'ユーザー'}さんが「{item.name}」にコメントしました",
+            link=f"/items/{item_id}",
+        )
+        db.add(notification)
+        db.commit()
+
     return new_comment
+
