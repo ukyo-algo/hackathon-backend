@@ -85,7 +85,7 @@ FUNCTION_DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="check_balance",
-        description="コイン残高を確認する。ユーザーが「残高」「コインいくら」と言った時に使う。",
+        description="ガチャポイントと記憶のかけらの残高を確認する。ユーザーが「ポイントいくら」「かけらいくら」「残高教えて」と言った時に使う。",
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={},
@@ -116,30 +116,8 @@ FUNCTION_DECLARATIONS = [
         ),
     ),
     types.FunctionDeclaration(
-        name="generate_description",
-        description="商品説明文を生成する。ユーザーが「説明書いて」「説明考えて」と言った時、または出品フォームページにいて「出品して」と言った時に使う。出品フォームページでは start_listing ではなくこちらを使う。",
-        parameters=types.Schema(
-            type=types.Type.OBJECT,
-            properties={
-                "name": types.Schema(
-                    type=types.Type.STRING,
-                    description="商品名",
-                ),
-                "category": types.Schema(
-                    type=types.Type.STRING,
-                    description="カテゴリ",
-                ),
-                "keywords": types.Schema(
-                    type=types.Type.STRING,
-                    description="説明に含めたいキーワード（任意）",
-                ),
-            },
-            required=["name"],
-        ),
-    ),
-    types.FunctionDeclaration(
         name="start_listing",
-        description="出品フォームに遷移して情報を自動入力する。ユーザーが「出品して」「売りたい」と言った時に使う。ただし、すでに出品フォームページ（page='items/create'）にいる場合は使わず、generate_description を使うこと。",
+        description="出品フォームに遷移して情報を自動入力する。ユーザーが「出品して」「売りたい」と言った時、または商品説明を考えてほしい時に使う。",
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -498,15 +476,6 @@ class FunctionExecutor:
             "sample_count": len(similar_items),
         }
     
-    def _exec_generate_description(self, name: str, category: str = None, keywords: str = None) -> Dict[str, Any]:
-        """商品説明生成（フロントに指示を返す - 実際の生成はLLMが行う）"""
-        return {
-            "action": "generate_description",
-            "name": name,
-            "category": category,
-            "keywords": keywords,
-            "prompt": f"{name}の魅力的な商品説明を生成してください。",
-        }
     
     def _exec_start_listing(
         self, name: str, price: int = None, category: str = None, description: str = None
