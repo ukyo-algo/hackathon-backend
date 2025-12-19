@@ -332,24 +332,109 @@ class FunctionExecutor:
         }
     
     def _exec_get_recommendations(self, keyword: str = None) -> Dict[str, Any]:
-        """おすすめ生成（簡易版 - 履歴から取得）"""
-        recs = (
-            self.db.query(models.LLMRecommendation)
-            .filter(models.LLMRecommendation.user_id == self.user_id)
-            .order_by(models.LLMRecommendation.recommended_at.desc())
-            .limit(4)
-            .all()
-        )
+        """おすすめ生成（ユーザー活動履歴ベース）"""
+        from sqlalchemy.orm import joinedload
+        from app.services import recommend_service
+        
+        user = self.db.query(models.User).filter(
+            models.User.firebase_uid == self.user_id
+        ).first()
+        
+        recommended_items = []
+        reason = ""
+        
+        # 1. キーワード指定がある場合は検索ベース
+        if keyword:
+            items = (
+                self.db.query(models.Item)
+                .filter(
+                    models.Item.status == "on_sale",
+                    models.Item.name.ilike(f"%{keyword}%")
+                )
+                .limit(5)
+                .all()
+            )
+            recommended_items = items
+            reason = f"「{keyword}」に関連する商品"
+        
+        # 2. いいねした商品から類似商品を探す
+        if not recommended_items:
+            liked_item = (
+                self.db.query(models.Item)
+                .join(models.Like, models.Item.item_id == models.Like.item_id)
+                .filter(models.Like.user_id == self.user_id)
+                .order_by(models.Like.created_at.desc())
+                .first()
+            )
+            if liked_item:
+                recommended_items = recommend_service.get_recommendations(
+                    self.db, liked_item.item_id, limit=5
+                )
+                reason = f"お気に入りの「{liked_item.name}」に似た商品"
+        
+        # 3. 購入履歴から類似商品を探す
+        if not recommended_items:
+            purchase = (
+                self.db.query(models.Transaction)
+                .options(joinedload(models.Transaction.item))
+                .filter(models.Transaction.buyer_id == self.user_id)
+                .order_by(models.Transaction.created_at.desc())
+                .first()
+            )
+            if purchase and purchase.item:
+                recommended_items = recommend_service.get_recommendations(
+                    self.db, purchase.item.item_id, limit=5
+                )
+                reason = f"購入した「{purchase.item.name}」に似た商品"
+        
+        # 4. コメント履歴から関心のあるカテゴリを探す
+        if not recommended_items:
+            comment = (
+                self.db.query(models.Comment)
+                .options(joinedload(models.Comment.item))
+                .filter(models.Comment.user_id == self.user_id)
+                .order_by(models.Comment.created_at.desc())
+                .first()
+            )
+            if comment and comment.item:
+                category = comment.item.category
+                items = (
+                    self.db.query(models.Item)
+                    .filter(
+                        models.Item.status == "on_sale",
+                        models.Item.category == category
+                    )
+                    .order_by(models.Item.created_at.desc())
+                    .limit(5)
+                    .all()
+                )
+                recommended_items = items
+                reason = f"興味のある「{category}」カテゴリの商品"
+        
+        # 5. フォールバック: 人気商品（いいね数順）
+        if not recommended_items:
+            items = (
+                self.db.query(models.Item)
+                .filter(models.Item.status == "on_sale")
+                .order_by(models.Item.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            recommended_items = items
+            reason = "新着のおすすめ商品"
         
         return {
             "action": "get_recommendations",
             "keyword": keyword,
+            "reason": reason,
             "items": [
                 {
-                    "item_id": rec.item_id,
-                    "reason": rec.reason,
+                    "item_id": item.item_id,
+                    "name": item.name,
+                    "price": item.price,
+                    "category": item.category,
                 }
-                for rec in recs if rec.item
+                for item in recommended_items[:5]
             ],
         }
     
