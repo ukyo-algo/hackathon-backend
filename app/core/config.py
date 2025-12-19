@@ -35,7 +35,7 @@ class Settings:
 
     # Frontend/feature config knobs
     # おすすめ関連の件数とクールダウン（分）を環境変数から設定可能に
-    RECOMMEND_ITEM_COUNT: int = int(os.getenv("RECOMMEND_ITEM_COUNT", "5"))
+    RECOMMEND_ITEM_COUNT: int = int(os.getenv("RECOMMEND_ITEM_COUNT", "10"))
     RECOMMEND_COOLDOWN_MINUTES: int = int(os.getenv("RECOMMEND_COOLDOWN_MINUTES", "60"))
 
     # コイン報酬関連

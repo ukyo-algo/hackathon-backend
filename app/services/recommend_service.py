@@ -20,7 +20,9 @@ def japanese_tokenizer(text):
     return [token.surface for token in tokenizer.tokenize(text)]
 
 
-def get_recommendations(db: Session, item_id: str, limit: int = 10):
+from app.core.config import settings
+
+def get_recommendations(db: Session, item_id: str, limit: int = settings.RECOMMEND_ITEM_COUNT):
     """
     指定された商品(item_id)に似ている商品をDBから探して返す
     """

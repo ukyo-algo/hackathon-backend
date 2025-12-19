@@ -209,10 +209,12 @@ def _calculate_purchase_reward(db: Session, user: models.User, item: models.Item
 # レコメンド
 # =============================================================================
 
+from app.core.config import settings
+
 @router.get("/{item_id}/recommend", response_model=List[item_schema.Item], summary="おすすめ商品の取得")
 def get_recommend_items(item_id: str, db: Session = Depends(get_db)):
     """指定された商品に類似したおすすめ商品を取得"""
-    return recommend_service.get_recommendations(db, item_id, limit=3)
+    return recommend_service.get_recommendations(db, item_id, limit=settings.RECOMMEND_ITEM_COUNT)
 
 
 # =============================================================================

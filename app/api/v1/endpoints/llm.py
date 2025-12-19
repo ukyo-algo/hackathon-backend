@@ -67,17 +67,33 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
     
     if page_type == "gacha_result":
         # ガチャ結果時：引いたキャラについてコメント
+        result_name = page_context_raw.get("result_persona_name", "")
+        result_is_new = page_context_raw.get("result_is_new", False)
+        result_rarity = page_context_raw.get("result_rarity_name", "")
+        additional = page_context_raw.get("additional_info", {})
+        char_desc = additional.get("引いたキャラの説明", "") if additional else ""
+        skill_name = additional.get("スキル名", "") if additional else ""
+        skill_effect = additional.get("スキル効果", "") if additional else ""
+        
         prompt = f"""
 {context_text}
 
-ユーザーがガチャを引きました！上記の結果を見てください。
-引いたキャラクターについて、キャラクターとして以下のいずれかのリアクションをしてください：
-- 新規獲得なら祝福する
-- レアリティが高ければ興奮する
-- 重複なら「また会えたね」的なコメント
-- キャラの名前やレアリティに応じた個性的なコメント
+ユーザーがガチャを引いて「{result_name}」を獲得しました！
 
-汎用的な説明は避け、具体的なキャラ名に言及してください。
+【引いたキャラクターの情報】
+- 名前: {result_name}
+- レアリティ: {result_rarity}
+- 新規獲得: {"はい" if result_is_new else "いいえ（重複）"}
+- キャラ説明: {char_desc}
+- スキル: {skill_name} - {skill_effect}
+
+上記の情報を踏まえて、引いたキャラクターについてコメントしてください：
+- 新規獲得なら祝福し、そのキャラの特徴やスキルについて触れる
+- レアリティが高ければ興奮する
+- 重複なら「また会えたね」的なコメントと記憶のかけら獲得を説明
+- キャラの名前・説明・スキルに応じた個性的なコメント
+
+汎用的な説明は避け、必ず「{result_name}」という具体的なキャラ名に言及してください。
 """
     elif page_type in ("my_page", "mypage"):
         # マイページ：出品・購入状況に関する一言
