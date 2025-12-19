@@ -340,14 +340,11 @@ def level_up_persona(
     }
 
 
-from pydantic import BaseModel
 
-class AddFragmentsRequest(BaseModel):
-    amount: int
 
 @router.post("/me/add-fragments")
 def add_memory_fragments(
-    request: AddFragmentsRequest,
+    request: user_schema.AddFragmentsRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -371,4 +368,116 @@ def add_memory_fragments(
         "added_fragments": amount,
         "current_fragments": current_user.memory_fragments,
         "message": f"💎 記憶のかけら +{amount}個 を追加しました！",
+    }
+
+
+
+
+
+@router.post("/me/subscribe")
+def purchase_subscription(
+    request: user_schema.SubscriptionRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    月額パスを購入する（¥500/月）
+    デュアルペルソナ機能が有効になる
+    """
+    from datetime import datetime, timedelta
+    
+    months = request.months
+    if months <= 0:
+        raise HTTPException(status_code=400, detail="購入月数は1以上である必要があります")
+    
+    # 既存のサブスクがあれば延長、なければ今日から開始
+    now = datetime.now()
+    if current_user.subscription_expires_at and current_user.subscription_expires_at > now:
+        new_expiry = current_user.subscription_expires_at + timedelta(days=30 * months)
+    else:
+        new_expiry = now + timedelta(days=30 * months)
+    
+    current_user.subscription_tier = "monthly"
+    current_user.subscription_expires_at = new_expiry
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "success": True,
+        "subscription_tier": "monthly",
+        "expires_at": new_expiry.isoformat(),
+        "message": f"🎉 月額パス（{months}ヶ月）を購入しました！デュアルペルソナ機能が有効になりました！",
+    }
+
+
+
+
+
+@router.post("/me/sub-persona")
+def set_sub_persona(
+    request: user_schema.SetSubPersonaRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    サブペルソナを設定する（月額パス加入者のみ）
+    """
+    from datetime import datetime
+    
+    # サブスク確認
+    now = datetime.now()
+    if current_user.subscription_tier != "monthly" or \
+       not current_user.subscription_expires_at or \
+       current_user.subscription_expires_at < now:
+        raise HTTPException(
+            status_code=403,
+            detail="サブペルソナを設定するには月額パスが必要です",
+        )
+    
+    persona_id = request.persona_id
+    
+    # 所持しているか確認
+    owned_ids = [up.persona_id for up in current_user.owned_personas_association]
+    if persona_id not in owned_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="所持していないペルソナは設定できません",
+        )
+    
+    # メインと同じペルソナは設定不可
+    if persona_id == current_user.current_persona_id:
+        raise HTTPException(
+            status_code=400,
+            detail="メインペルソナと同じキャラクターはサブに設定できません",
+        )
+    
+    current_user.sub_persona_id = persona_id
+    db.commit()
+    db.refresh(current_user)
+    
+    # サブペルソナ情報を取得
+    sub_persona = db.query(models.AgentPersona).filter(models.AgentPersona.id == persona_id).first()
+    
+    return {
+        "success": True,
+        "sub_persona_id": persona_id,
+        "sub_persona_name": sub_persona.name if sub_persona else None,
+        "message": f"🎭 サブペルソナを設定しました！",
+    }
+
+
+@router.delete("/me/sub-persona")
+def unset_sub_persona(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    サブペルソナを解除する
+    """
+    current_user.sub_persona_id = None
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "サブペルソナを解除しました",
     }

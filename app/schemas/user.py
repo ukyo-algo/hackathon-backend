@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
+from datetime import datetime
 
 
 class PersonaBase(BaseModel):
@@ -33,7 +34,14 @@ class UserBase(BaseModel):
     icon_url: str | None = None
     current_persona_id: int
     current_persona: Optional["PersonaBase"] = None
-    gacha_points: int = 0  # 旧名: coins
+    # サブペルソナ（月額パス加入者のみ）
+    sub_persona_id: Optional[int] = None
+    sub_persona: Optional["PersonaBase"] = None
+    # サブスクリプション情報
+    subscription_tier: str = "free"
+    subscription_expires_at: Optional[datetime] = None
+    # ポイント
+    gacha_points: int = 0
     memory_fragments: int = 0
 
     # SQLAlchemyモデル（models.User）から
@@ -49,3 +57,19 @@ class UserCreate(UserBase):
 
     # 作成時は current_persona_id は必須ではない（バックエンドで設定する）
     current_persona_id: Optional[int] = None
+
+
+# --- リクエストスキーマ ---
+class AddFragmentsRequest(BaseModel):
+    """記憶のかけら追加リクエスト"""
+    amount: int
+
+
+class SubscriptionRequest(BaseModel):
+    """月額パス購入リクエスト"""
+    months: int = 1
+
+
+class SetSubPersonaRequest(BaseModel):
+    """サブペルソナ設定リクエスト"""
+    persona_id: int

@@ -67,6 +67,13 @@ class User(Base):
 
     # 現在セットしているペルソナID
     current_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+    
+    # サブペルソナID（月額パス加入者のみ使用可能）
+    sub_persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
+    
+    # サブスクリプション: free/monthly
+    subscription_tier = Column(String(50), default="free")
+    subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -79,6 +86,7 @@ class User(Base):
 
     # キャラクター関連
     current_persona = relationship("AgentPersona", foreign_keys=[current_persona_id])
+    sub_persona = relationship("AgentPersona", foreign_keys=[sub_persona_id])
 
     # 中間テーブルへのリレーション
     owned_personas_association = relationship("UserPersona", back_populates="user")

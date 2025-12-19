@@ -107,6 +107,31 @@ class LLMService(LLMBase):
                 "theme": current_persona.theme_color,
             }
 
+        # --- サブペルソナ対応（月額パス加入者） ---
+        sub_persona_info = None
+        from datetime import datetime
+        if user and user.sub_persona_id and user.subscription_tier == "monthly":
+            # 有効期限チェック
+            if user.subscription_expires_at and user.subscription_expires_at > datetime.now():
+                sub_persona = user.sub_persona
+                if sub_persona:
+                    sub_persona_info = {
+                        "name": sub_persona.name,
+                        "avatar_url": sub_persona.avatar_url,
+                        "theme": sub_persona.theme_color,
+                    }
+                    # プロンプトにサブペルソナの存在を追加
+                    system_instruction += f"""
+
+【サブパートナー】
+あなたにはサブパートナーとして「{sub_persona.name}」がいます。
+一般的なチャット会話では、あなた（メイン）が回答した後、サブパートナーの視点からも短いコメントを追加してください。
+形式:
+[あなたの回答]
+
+💬 {sub_persona.name}: [サブパートナーからの短いコメント]
+"""
+
         # WEB_INFOをシステム指示に追加
         web_info_text = self._build_web_info_text()
         if web_info_text:
@@ -245,6 +270,7 @@ class LLMService(LLMBase):
             return {
                 "reply": reply_text,
                 "persona": persona_info,
+                "sub_persona": sub_persona_info,
                 "function_calls": function_calls if function_calls else None,
             }
 
