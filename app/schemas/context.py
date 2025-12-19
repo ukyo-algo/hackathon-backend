@@ -73,15 +73,19 @@ def build_context_text(page_context: Optional[PageContext]) -> str:
         "homepage": "ホームページ",
         "item_detail": "商品詳細ページ",
         "search": "検索結果ページ",
+        "search_results": "検索結果ページ",
         "mypage": "マイページ",
+        "my_page": "マイページ",
         "gacha": "ガチャページ",
         "gacha_result": "ガチャ結果",
         "persona_selection": "キャラクター選択ページ",
         "seller": "出品管理ページ",
+        "seller_shipments": "出品管理ページ",
         "buyer": "購入管理ページ",
+        "buyer_deliveries": "購入管理ページ",
         "mission": "ミッションページ",
-        "my_page": "マイページ",
         "buy_confirmation": "購入確認ページ",
+        "levelup": "レベルアップ",
     }
     page_name = page_type_names.get(page_context.page_type, page_context.page_type)
     lines.append(f"【現在のページ】{page_name}")

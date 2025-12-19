@@ -183,6 +183,17 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 商品を見ているなら具体的な感想や意見を述べてください。
 """
 
+    # 共通フッター: キャラクターの性格を必ず守る指示
+    persona_reminder = """
+
+【重要】以下を必ず守ってください：
+- あなたのキャラクター設定（出自、悲劇、こだわり、MBTI、口調）を忠実に再現してください
+- 設定された一人称や語尾を使ってください
+- 汎用的な敬語や丁寧語ではなく、キャラクター固有の話し方をしてください
+- 回答は3〜4行程度で簡潔に
+"""
+    prompt += persona_reminder
+
     print(f"[llm/context] prompt length: {len(prompt)}")
     print(f"[llm/context] === FULL PROMPT ===")
     print(prompt)
