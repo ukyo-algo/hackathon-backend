@@ -82,6 +82,20 @@ def ship_transaction(
     db.add(tx)
     db.commit()
     db.refresh(tx)
+
+    # 購入者に発送通知を送信
+    buyer = db.query(models.User).filter(models.User.firebase_uid == tx.buyer_id).first()
+    if buyer:
+        notification = models.Notification(
+            user_id=buyer.id,
+            type="shipment",
+            title="商品が発送されました！",
+            message=f"「{tx.item.name}」が発送されました。お届けまでしばらくお待ちください。",
+            link="/buyer",
+        )
+        db.add(notification)
+        db.commit()
+
     return tx
 
 
@@ -114,4 +128,17 @@ def complete_transaction(
     db.add(tx)
     db.commit()
     db.refresh(tx)
+
+    # 出品者に取引完了通知を送信
+    if tx.item and tx.item.seller:
+        notification = models.Notification(
+            user_id=tx.item.seller.id,
+            type="transaction_complete",
+            title="取引が完了しました！",
+            message=f"「{tx.item.name}」の取引が完了しました。ありがとうございました！",
+            link="/seller",
+        )
+        db.add(notification)
+        db.commit()
+
     return tx

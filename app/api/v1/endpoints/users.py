@@ -424,11 +424,15 @@ def set_sub_persona(
     """
     from datetime import datetime
     
+    print(f"[set_sub_persona] START - user_id={current_user.id}, persona_id={request.persona_id}")
+    print(f"[set_sub_persona] subscription_tier={current_user.subscription_tier}, expires_at={current_user.subscription_expires_at}")
+    
     # サブスク確認
     now = datetime.now()
     if current_user.subscription_tier != "monthly" or \
        not current_user.subscription_expires_at or \
        current_user.subscription_expires_at < now:
+        print(f"[set_sub_persona] ERROR - subscription invalid")
         raise HTTPException(
             status_code=403,
             detail="サブペルソナを設定するには月額パスが必要です",
@@ -438,7 +442,9 @@ def set_sub_persona(
     
     # 所持しているか確認
     owned_ids = [up.persona_id for up in current_user.owned_personas_association]
+    print(f"[set_sub_persona] owned_ids={owned_ids}")
     if persona_id not in owned_ids:
+        print(f"[set_sub_persona] ERROR - persona not owned")
         raise HTTPException(
             status_code=400,
             detail="所持していないペルソナは設定できません",
@@ -446,6 +452,7 @@ def set_sub_persona(
     
     # メインと同じペルソナは設定不可
     if persona_id == current_user.current_persona_id:
+        print(f"[set_sub_persona] ERROR - same as main persona")
         raise HTTPException(
             status_code=400,
             detail="メインペルソナと同じキャラクターはサブに設定できません",
@@ -454,6 +461,8 @@ def set_sub_persona(
     current_user.sub_persona_id = persona_id
     db.commit()
     db.refresh(current_user)
+    
+    print(f"[set_sub_persona] SUCCESS - sub_persona_id set to {persona_id}")
     
     # サブペルソナ情報を取得
     sub_persona = db.query(models.AgentPersona).filter(models.AgentPersona.id == persona_id).first()
