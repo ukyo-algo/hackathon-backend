@@ -11,7 +11,7 @@ from datetime import datetime
 
 from app.db.database import get_db
 from app.db import models
-from app.api.deps import get_current_user
+from app.api.v1.endpoints.users import get_current_user
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 

@@ -52,8 +52,16 @@ def get_current_user(
 def read_all_personas(db: Session = Depends(get_db)):
     """
     全キャラクターのリストを取得します。
+    スキル効果はLv1のデフォルト値で展開されます。
     """
-    return db.query(models.AgentPersona).all()
+    personas = db.query(models.AgentPersona).all()
+    results = []
+    for p in personas:
+        p_schema = user_schema.PersonaBase.model_validate(p)
+        # Lv1のデフォルト値でスキルテキストを展開
+        p_schema.skill_effect = get_dynamic_skill_text(p.id, 1, p.skill_effect)
+        results.append(p_schema)
+    return results
 
 
 @router.get("/me", response_model=user_schema.UserBase)
