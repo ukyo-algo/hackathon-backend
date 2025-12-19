@@ -324,12 +324,22 @@ class LLMService(LLMBase):
             
             random.shuffle(candidates)
             for it in candidates[:item_count]:
+                # seller情報を取得
+                seller_info = None
+                if hasattr(it, 'seller') and it.seller:
+                    seller_info = {"username": it.seller.username}
+                elif hasattr(it, 'seller_id'):
+                    seller = self.db.query(models.User).filter(models.User.id == it.seller_id).first()
+                    if seller:
+                        seller_info = {"username": seller.username}
+                
                 items.append({
                     "item_id": str(getattr(it, "item_id", it.id)),
                     "name": getattr(it, "name", getattr(it, "title", "")),
                     "price": getattr(it, "price", None),
                     "image_url": getattr(it, "image_url", None),
                     "description": getattr(it, "description", None),
+                    "seller": seller_info,
                 })
             print(f"[generate_recommendations] Final items: {len(items)}")
         except Exception as e:
@@ -340,10 +350,13 @@ class LLMService(LLMBase):
 
         # ペルソナの口調で各商品の理由を生成
         item_reasons = {}
+        intro_message = "おすすめの商品です！"  # デフォルト値
         try:
             system_instruction = "あなたは親切なAIアシスタントです。"
+            persona_name = "アシスタント"
             if user and user.current_persona:
                 system_instruction = user.current_persona.system_prompt or system_instruction
+                persona_name = user.current_persona.name
 
             # 商品リストをプロンプト用に整形
             items_text = "\n".join([
@@ -352,6 +365,13 @@ class LLMService(LLMBase):
             ])
             
             prompt = build_recommend_prompt(keyword, mode, items_text)
+            # ペルソナ名を明示的に追加して口調を強制
+            prompt += f"""
+
+【重要】あなたは「{persona_name}」というキャラクターです。
+intro_messageは必ず{persona_name}のキャラクター固有の口調で書いてください。
+汎用的な敬語ではなく、キャラクターの一人称や語尾を使ってください。
+"""
 
             config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
