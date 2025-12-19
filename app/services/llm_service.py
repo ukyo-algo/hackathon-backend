@@ -33,9 +33,9 @@ class LLMService(LLMBase):
         # ユーザーと現在セット中のキャラを取得し、system_instructionとpersona_infoを準備
         current_persona = None
         persona_info = {
-            "name": "AIアシスタント",
-            "avatar_url": "/avatars/default.png",
-            "theme": "default",
+            "name": "ドット絵の村人",
+            "avatar_url": "/avatars/model1.png",
+            "theme": "#1976d2",
         }
         system_instruction = DEFAULT_SYSTEM_PROMPT
 

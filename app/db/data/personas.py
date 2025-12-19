@@ -159,7 +159,7 @@ PERSONAS_DATA = [
         "mbti": "ISFJ (擁護者)",
         
         "skill_name": "ビギナーズ・エール",
-        "skill_effect": "【全カテゴリ】購入時のポイント還元率 +0.5%",
+        "skill_effect": "ガチャ被り時に記憶のかけら+1～5個",
 
         "system_prompt": f"""
 # Character Profile
@@ -196,7 +196,7 @@ User: "これ買っちゃおうかな！"
         "mbti": "ESFP (エンターテイナー)",
         
         "skill_name": "トレンド・ブースト",
-        "skill_effect": "【レディース/コスメ】出品時の閲覧数ボーナス(小)",
+        "skill_effect": "ガチャ被り時に記憶のかけら+2～8個",
 
         "system_prompt": f"""
 # Character Profile
@@ -233,7 +233,7 @@ User: "安くて無難なやつにしようかな"
         "mbti": "ISTJ (管理者)",
         
         "skill_name": "ロイヤル・ケア",
-        "skill_effect": "【メンズ/時計/ブランド】購入時のポイント還元率 +2.0%",
+        "skill_effect": "【メンズ/時計/ブランド】購入時+1～5%ポイント",
 
         "system_prompt": f"""
 # Character Profile
@@ -274,7 +274,7 @@ User: "高すぎるから諦めるよ"
         "mbti": "INFJ (提唱者)",
         
         "skill_name": "ピュア・クレンズ",
-        "skill_effect": "【ベビー/キッズ/美容】出品商品の検索表示順位UP(中)",
+        "skill_effect": "ガチャ被り時に記憶のかけら+3～12個",
 
         "system_prompt": f"""
 # Character Profile
@@ -311,7 +311,7 @@ User: "いらないから捨てようかな"
         "mbti": "INFP (仲介者)",
         
         "skill_name": "森の賢者の知恵",
-        "skill_effect": "【本/音楽/ハンドメイド】購入時のポイント還元率 +3.0%",
+        "skill_effect": "デイリー送料5%OFFクーポン発行(3～12時間有効)",
 
         "system_prompt": f"""
 # Character Profile
@@ -348,7 +348,7 @@ User: "読み終わったら売ればいいや"
         "mbti": "ENTP (討論者)",
         
         "skill_name": "等価交換の理",
-        "skill_effect": "【スマホ/家電/カメラ】売却時の販売手数料 5%OFF",
+        "skill_effect": "【スマホ/家電/カメラ】購入時+3～10%ポイント",
 
         "system_prompt": f"""
 # Character Profile
@@ -385,7 +385,7 @@ User: "新品のiPhone高すぎ…"
         "mbti": "ENFP (広報運動家)",
         
         "skill_name": "フォーチュン・アイ",
-        "skill_effect": "【インテリア/小物】おすすめタブでの露出増加(中)",
+        "skill_effect": "クエスト報酬+10～50ボーナス",
 
         "system_prompt": f"""
 # Character Profile
@@ -426,7 +426,7 @@ User: "どっちの色にするか迷うな"
         "mbti": "ESFJ (領事官)",
         
         "skill_name": "スタミナ・ダッシュ",
-        "skill_effect": "【スポーツ/レジャー】購入時の送料相当分ポイントバック(月1回)",
+        "skill_effect": "レベルアップ必要かけら-2～10%減少",
 
         "system_prompt": f"""
 # Character Profile
@@ -463,7 +463,7 @@ User: "やっぱ高いからやめる"
         "mbti": "ISTP (巨匠)",
         
         "skill_name": "マイスター・メンテナンス",
-        "skill_effect": "【自動車/オートバイ/工具】出品時、高値で売れやすくなる補正(小)",
+        "skill_effect": "レベルアップ必要かけら-5～20%減少",
 
         "system_prompt": f"""
 # Character Profile
@@ -500,7 +500,7 @@ User: "車の傷、自分で直せるかな"
         "mbti": "ISTJ (管理者)",
         
         "skill_name": "神速の約定",
-        "skill_effect": "【全カテゴリ】発送までの平均時間表示を短縮表示・優遇",
+        "skill_effect": "クエストクールダウン-5～25分短縮",
 
         "system_prompt": f"""
 # Character Profile
@@ -537,7 +537,7 @@ User: "即日発送だって！"
         "mbti": "ESTJ (幹部)",
         
         "skill_name": "ガーディアン・シールド",
-        "skill_effect": "【全カテゴリ】取引キャンセル時のペナルティ緩和",
+        "skill_effect": "レベルアップ必要かけら-3～15%減少",
 
         "system_prompt": f"""
 # Character Profile
@@ -578,7 +578,7 @@ User: "梱包が雑だったって評価があるね"
         "mbti": "ESTP (起業家)",
         
         "skill_name": "デビルズ・テンプテーション",
-        "skill_effect": "【ゲーム/おもちゃ/グッズ】購入時のポイント還元率 +4.0%",
+        "skill_effect": "デイリーガチャ10～30%OFFクーポン発行",
 
         "system_prompt": f"""
 # Character Profile
@@ -615,7 +615,7 @@ User: "やっぱりやめとく。無駄遣いだし"
         "mbti": "ENFP (広報運動家)",
         
         "skill_name": "バズ・バラード",
-        "skill_effect": "【チケット/楽器/タレント】出品時の閲覧数ボーナス(小)",
+        "skill_effect": "クエスト報酬+5～30ボーナス",
 
         "system_prompt": f"""
 # Character Profile
@@ -652,7 +652,7 @@ User: "ライブのチケット取れなかった…"
         "mbti": "ISTP (巨匠)",
         
         "skill_name": "トレジャー・ハント",
-        "skill_effect": "【全カテゴリ】「いいね！」した商品の値下げ通知が最速で届く",
+        "skill_effect": "【全カテゴリ】購入時+1～5%ポイント",
 
         "system_prompt": f"""
 # Character Profile
@@ -693,7 +693,7 @@ User: "値下げ交渉してみようかな"
         "mbti": "ISTJ (管理者)",
         
         "skill_name": "ロジカル・プロセッシング",
-        "skill_effect": "【PC/タブレット/周辺機器】出品時のスペック自動入力補助機能ON",
+        "skill_effect": "クエストクールダウン-3～15分短縮",
 
         "system_prompt": f"""
 # Character Profile
@@ -730,7 +730,7 @@ User: "デザインが好きだからProにする！"
         "mbti": "INTJ (建築家)",
         
         "skill_name": "招き猫の恩返し",
-        "skill_effect": "【全カテゴリ】売上金の振込手数料が月1回無料",
+        "skill_effect": "デイリー送料10%OFFクーポン発行(6～24時間有効)",
 
         "system_prompt": f"""
 # Character Profile
@@ -767,7 +767,7 @@ User: "猫のおもちゃ、たくさん買っちゃった"
         "mbti": "ENTJ (指揮官)",
         
         "skill_name": "ドラゴニック・グリード",
-        "skill_effect": "【時計/宝石/資産】購入・売却双方のポイント還元率 +5.0%",
+        "skill_effect": "【時計/宝石/ブランド】購入時+5～15%ポイント",
 
         "system_prompt": f"""
 # Character Profile
@@ -804,7 +804,7 @@ User: "ただのＴシャツ買おうかな"
         "mbti": "ESTP (起業家)",
         
         "skill_name": "ゴールデン・ルール",
-        "skill_effect": "【全カテゴリ】販売手数料を一律 1%OFF",
+        "skill_effect": "デイリー送料15%OFFクーポン発行(6～24時間有効)",
 
         "system_prompt": f"""
 # Character Profile
@@ -841,7 +841,7 @@ User: "この値段で売れるかな？"
         "mbti": "ISFP (冒険家)",
         
         "skill_name": "ネイチャー・サイクル",
-        "skill_effect": "【インテリア/植物/食品】まとめ買い時の送料割引クーポン配布率UP",
+        "skill_effect": "ガチャ被り時に記憶のかけら+2～8個",
 
         "system_prompt": f"""
 # Character Profile
@@ -878,7 +878,7 @@ User: "プラスチックのケース、大量に買っちゃった"
         "mbti": "INTP (論理学者)",
         
         "skill_name": "アンノウン・テクノロジー",
-        "skill_effect": "【タレント/コミック/アニメ】出品時のAIタグ付け精度が超向上",
+        "skill_effect": "ガチャ被り時に記憶のかけら+5～20個",
 
         "system_prompt": f"""
 # Character Profile
