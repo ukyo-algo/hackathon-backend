@@ -338,3 +338,37 @@ def level_up_persona(
         "fragments_spent": actual_cost,
         "remaining_fragments": current_user.memory_fragments,
     }
+
+
+from pydantic import BaseModel
+
+class AddFragmentsRequest(BaseModel):
+    amount: int
+
+@router.post("/me/add-fragments")
+def add_memory_fragments(
+    request: AddFragmentsRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    記憶のかけらを追加する（購入処理）
+    """
+    amount = request.amount
+    
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="追加する量は正の数である必要があります",
+        )
+    
+    current_user.memory_fragments = (current_user.memory_fragments or 0) + amount
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "success": True,
+        "added_fragments": amount,
+        "current_fragments": current_user.memory_fragments,
+        "message": f"💎 記憶のかけら +{amount}個 を追加しました！",
+    }

@@ -163,6 +163,14 @@ FUNCTION_DECLARATIONS = [
             required=["name"],
         ),
     ),
+    types.FunctionDeclaration(
+        name="analyze_listing_image",
+        description="出品フォームページ（page='items/create' または 'item_create'）で、ユーザーが画像をアップロード済みの場合に使う。「出品して」「画像から入力して」「出品情報を入力して」と言った時にこれを呼ぶ。画像を解析して商品情報を自動入力する。",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={},
+        ),
+    ),
 ]
 
 # ツール定義
@@ -510,4 +518,11 @@ class FunctionExecutor:
                 "category": category,
                 "description": description,
             },
+        }
+
+    def _exec_analyze_listing_image(self) -> Dict[str, Any]:
+        """出品ページで画像を解析して商品情報を自動入力"""
+        return {
+            "action": "analyze_listing_image",
+            "message": "画像を解析して商品情報を入力します...",
         }
