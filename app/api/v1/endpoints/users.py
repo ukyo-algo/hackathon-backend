@@ -52,16 +52,9 @@ def get_current_user(
 def read_all_personas(db: Session = Depends(get_db)):
     """
     全キャラクターのリストを取得します。
-    スキル効果はLv1のデフォルト値で展開されます。
     """
     personas = db.query(models.AgentPersona).all()
-    results = []
-    for p in personas:
-        p_schema = user_schema.PersonaBase.model_validate(p)
-        # Lv1のデフォルト値でスキルテキストを展開
-        p_schema.skill_effect = get_dynamic_skill_text(p.id, 1, p.skill_effect)
-        results.append(p_schema)
-    return results
+    return [user_schema.PersonaBase.model_validate(p) for p in personas]
 
 
 @router.get("/me", response_model=user_schema.UserBase)
@@ -224,24 +217,33 @@ def update_user_persona(
     return current_user
 
 
-@router.get("/me/personas", response_model=List[user_schema.PersonaBase])
+@router.get("/me/personas")
 def read_own_personas(
     db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
 ):
     """
-    自分が所持しているAIアシスタントキャラクターの一覧を取得
+    自分が所持しているAIアシスタントキャラクターの一覧を取得（レベル情報付き）
     """
-    # 中間テーブル経由でPersonaオブジェクトを取得して返す
-    # UserPersonaのリストではなく、AgentPersonaのリストを返す必要があるためJOINする
-    personas = (
-        db.query(models.AgentPersona)
-        .join(
-            models.UserPersona, models.AgentPersona.id == models.UserPersona.persona_id
-        )
+    from app.db.data.personas import get_dynamic_skill_text
+    
+    # 中間テーブル経由でPersonaとレベル情報を取得
+    user_personas = (
+        db.query(models.UserPersona, models.AgentPersona)
+        .join(models.AgentPersona, models.AgentPersona.id == models.UserPersona.persona_id)
         .filter(models.UserPersona.user_id == current_user.id)
         .all()
     )
-    return personas
+    
+    results = []
+    for user_persona, persona in user_personas:
+        persona_dict = user_schema.PersonaBase.model_validate(persona).model_dump()
+        # レベルに基づいた動的スキルテキストを設定
+        persona_dict["level"] = user_persona.level
+        persona_dict["stack_count"] = user_persona.stack_count
+        persona_dict["skill_effect"] = get_dynamic_skill_text(persona.id, user_persona.level)
+        results.append(persona_dict)
+    
+    return results
 
 
 # レアリティ別レベルアップコスト（記憶のかけら）

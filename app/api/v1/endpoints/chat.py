@@ -6,53 +6,23 @@ LLMキャラとの会話（ページコンテキスト対応）+ 履歴保存
 
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 
 from app.db.database import get_db
 from app.api.v1.endpoints.users import get_current_user
 from app.db import models
 from app.services.llm_service import LLMService
 from app.schemas.context import PageContext, build_context_text
+from app.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+    ChatMessageCreate,
+    ChatMessageResponse,
+    ImageAnalysisRequest,
+    ImageAnalysisResponse,
+)
 
 router = APIRouter()
-
-
-class ChatRequest(BaseModel):
-    """チャットリクエスト"""
-    message: str
-    page_context: Optional[Dict[str, Any]] = None  # ページコンテキスト
-    history: Optional[List[Dict[str, Any]]] = None  # 互換性維持（未使用）
-
-
-class ChatResponse(BaseModel):
-    """チャットレスポンス"""
-    reply: str
-    persona: Dict[str, Any]
-    function_calls: Optional[List[Dict[str, Any]]] = None
-
-
-class ChatMessageCreate(BaseModel):
-    """チャットメッセージ保存リクエスト"""
-    role: str  # 'user' or 'ai'
-    content: str
-    type: Optional[str] = None  # 'guidance', 'chat', etc.
-    page_path: Optional[str] = None
-
-
-class ChatMessageResponse(BaseModel):
-    """チャットメッセージレスポンス"""
-    id: int
-    role: str
-    content: str
-    type: Optional[str]
-    page_path: Optional[str]
-    persona_name: Optional[str]
-    is_visible: bool = True
-    created_at: str
-
-    class Config:
-        from_attributes = True
 
 
 @router.post("", response_model=ChatResponse)
@@ -184,23 +154,6 @@ def get_messages(
 
 
 # --- 画像解析出品サポート ---
-
-class ImageAnalysisRequest(BaseModel):
-    """画像解析リクエスト"""
-    image_base64: str  # Base64エンコードされた画像
-    prompt: Optional[str] = None  # 追加の指示（オプション）
-
-
-class ImageAnalysisResponse(BaseModel):
-    """画像解析レスポンス"""
-    name: Optional[str] = None
-    category: Optional[str] = None
-    condition: Optional[str] = None
-    suggested_price: Optional[int] = None
-    price_range: Optional[Dict[str, int]] = None
-    description: Optional[str] = None
-    message: str
-
 
 @router.post("/analyze-image", response_model=ImageAnalysisResponse)
 def analyze_listing_image(

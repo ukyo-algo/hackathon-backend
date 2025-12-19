@@ -5,39 +5,18 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel
-from datetime import datetime
+from typing import List
 
 from app.db.database import get_db
 from app.db import models
 from app.api.v1.endpoints.users import get_current_user
+from app.schemas.notification import (
+    NotificationResponse,
+    NotificationListResponse,
+    UnreadCountResponse,
+)
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
-
-
-# --- Schemas ---
-
-class NotificationResponse(BaseModel):
-    id: int
-    type: str
-    title: str
-    message: str
-    link: Optional[str] = None
-    is_read: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class NotificationListResponse(BaseModel):
-    notifications: List[NotificationResponse]
-    unread_count: int
-
-
-class UnreadCountResponse(BaseModel):
-    unread_count: int
 
 
 # --- Endpoints ---

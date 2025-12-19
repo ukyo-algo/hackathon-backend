@@ -140,6 +140,65 @@ SKILL_DEFINITIONS = {
     },
 }
 
+
+def get_dynamic_skill_text(persona_id: int, level: int) -> str:
+    """
+    ペルソナIDとレベルに基づいて、動的にスキル効果テキストを生成する。
+    """
+    skill_def = SKILL_DEFINITIONS.get(persona_id)
+    if not skill_def:
+        return "スキルなし"
+    
+    skill_type = skill_def.get("skill_type", "")
+    
+    # レベルに応じた値を計算 (Lv1 = base, Lv10 = max)
+    def calc_value(base_key: str, max_key: str) -> int:
+        base = skill_def.get(base_key, 0)
+        max_val = skill_def.get(max_key, base)
+        if level <= 1:
+            return base
+        return base + int((max_val - base) * (level - 1) / 9)
+    
+    # スキルタイプ別のテキスト生成
+    if skill_type == "gacha_duplicate_fragments":
+        val = calc_value("base_value", "max_value")
+        return f"ガチャ被り時に記憶のかけら+{val}個"
+    
+    elif skill_type == "levelup_cost_reduction":
+        val = calc_value("base_value", "max_value")
+        return f"レベルアップ必要かけら-{val}%減少"
+    
+    elif skill_type == "quest_reward_bonus":
+        val = calc_value("base_value", "max_value")
+        return f"クエスト報酬+{val}ボーナス"
+    
+    elif skill_type == "quest_cooldown_reduction":
+        val = calc_value("base_value", "max_value")
+        return f"クエストクールダウン-{val}分短縮"
+    
+    elif skill_type == "purchase_bonus_percent":
+        val = calc_value("base_value", "max_value")
+        categories = skill_def.get("categories")
+        if categories:
+            cat_str = "/".join(categories)
+            return f"【{cat_str}】購入時+{val}%ポイント"
+        else:
+            return f"【全カテゴリ】購入時+{val}%ポイント"
+    
+    elif skill_type == "daily_shipping_coupon":
+        discount = skill_def.get("discount_percent", 0)
+        base_hours = skill_def.get("base_hours", 3)
+        max_hours = skill_def.get("max_hours", 12)
+        hours = base_hours + int((max_hours - base_hours) * (level - 1) / 9)
+        return f"デイリー送料{discount}%OFFクーポン発行({hours}時間有効)"
+    
+    elif skill_type == "daily_gacha_discount":
+        val = calc_value("base_value", "max_value")
+        return f"デイリーガチャ{val}%OFFクーポン発行"
+    
+    return "スキル効果"
+
+
 PERSONAS_DATA = [
     # =========================================================
     # 1. レトロRPG・アドベンチャー出身（ビギナー系）
