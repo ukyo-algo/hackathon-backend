@@ -46,11 +46,17 @@ def recommend(req: RecommendRequest, db: Session = Depends(get_db)):
     print(f"[recommend] Parsed items: {[i.dict() for i in items]}")
 
     # --- DBに保存 ---
+    # ペルソナ情報を取得（result.personaから）
+    persona_name = result.get("persona", {}).get("name")
+    persona_avatar_url = result.get("persona", {}).get("avatar_url")
+    
     for item in items:
         rec = models.LLMRecommendation(
             user_id=req.user_id,
             item_id=item.item_id,
             reason=reasons.get(item.item_id),
+            persona_name=persona_name,
+            persona_avatar_url=persona_avatar_url,
         )
         db.add(rec)
     
@@ -106,6 +112,8 @@ def get_recommend_history(
                     image_url=rec.item.image_url,
                     status=rec.item.status,
                     reason=rec.reason,
+                    persona_name=rec.persona_name,
+                    persona_avatar_url=rec.persona_avatar_url,
                     interest=rec.interest,
                     recommended_at=rec.recommended_at.isoformat() if rec.recommended_at else "",
                 )

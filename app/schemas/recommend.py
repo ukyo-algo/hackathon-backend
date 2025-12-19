@@ -34,6 +34,8 @@ class RecommendHistoryItem(BaseModel):
     image_url: Optional[str] = None
     status: Optional[str] = None  # 'on_sale' or 'sold'
     reason: Optional[str] = None
+    persona_name: Optional[str] = None  # おすすめを生成したペルソナ名
+    persona_avatar_url: Optional[str] = None  # ペルソナのアバター画像URL
     interest: Optional[str] = None
     recommended_at: str
 

@@ -267,6 +267,8 @@ class LLMRecommendation(Base):
     user_id = Column(String(255), ForeignKey("users.firebase_uid"), index=True)
     item_id = Column(String(255), ForeignKey("items.item_id"), index=True)
     reason = Column(Text, nullable=True)  # AIが生成した推薦理由
+    persona_name = Column(String(255), nullable=True)  # おすすめを生成したペルソナ名
+    persona_avatar_url = Column(String(512), nullable=True)  # ペルソナのアバター画像URL
     interest = Column(String(16), nullable=True)  # null / interested / not_interested
     recommended_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
