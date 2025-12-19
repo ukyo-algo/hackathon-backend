@@ -116,12 +116,20 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 """
 
     print(f"[llm/context] prompt length: {len(prompt)}")
+    print(f"[llm/context] === FULL PROMPT ===")
+    print(prompt)
+    print(f"[llm/context] === END PROMPT ===")
 
     llm_svc = get_llm_service(db)
     try:
         result = llm_svc.chat_with_persona(user_id=uid or "", current_chat=prompt)
         reply = result.get("reply")
         persona = result.get("persona")
+        
+        print(f"[llm/context] === LLM REPLY ===")
+        print(f"[llm/context] persona: {persona}")
+        print(f"[llm/context] reply: {reply}")
+        print(f"[llm/context] === END REPLY ===")
         
         # ガイダンスをDB履歴に保存（replyを保存する、context_textではない）
         if uid and reply:
