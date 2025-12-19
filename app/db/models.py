@@ -230,6 +230,7 @@ class ChatMessage(Base):
     content = Column(Text)
     persona_id = Column(Integer, ForeignKey("agent_personas.id"), nullable=True)
     page_path = Column(String(255), nullable=True)  # どのページで発言されたか
+    is_visible = Column(Boolean, default=True)  # UIに表示するかどうか
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # リレーション

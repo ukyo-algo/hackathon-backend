@@ -102,14 +102,14 @@ class LLMBase:
             return []
 
     def _save_message(
-        self, user_id: str, role: str, content: str, mtype: str | None = None
+        self, user_id: str, role: str, content: str, mtype: str | None = None, is_visible: bool = True
     ) -> None:
         """チャットメッセージをDBに保存"""
         if not user_id:
             return
         try:
             msg = models.ChatMessage(
-                user_id=user_id, role=role, type=mtype, content=content
+                user_id=user_id, role=role, type=mtype, content=content, is_visible=is_visible
             )
             self.db.add(msg)
             self.db.commit()

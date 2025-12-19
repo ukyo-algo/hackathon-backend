@@ -48,6 +48,7 @@ class ChatMessageResponse(BaseModel):
     type: Optional[str]
     page_path: Optional[str]
     persona_name: Optional[str]
+    is_visible: bool = True
     created_at: str
 
     class Config:
@@ -154,6 +155,7 @@ def get_messages(
     messages = (
         db.query(models.ChatMessage)
         .filter(models.ChatMessage.user_id == x_firebase_uid)
+        .filter(models.ChatMessage.is_visible == True)  # 表示可能なメッセージのみ
         .order_by(models.ChatMessage.created_at.desc())
         .limit(limit)
         .all()
