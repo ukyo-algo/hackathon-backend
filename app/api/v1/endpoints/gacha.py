@@ -13,7 +13,7 @@ from typing import Optional
 from app.db.database import get_db
 from app.api.v1.endpoints.users import get_current_user
 from app.db import models
-from app.schemas.gacha import GachaResponse
+from app.schemas.gacha import GachaResponse, ChargeRequest, ChargeResponse
 from app.schemas.user import PersonaBase
 from app.db.data.personas import SKILL_DEFINITIONS
 from app.services.mission_service import (
@@ -50,6 +50,30 @@ def get_available_gacha_coupons(
             }
             for c in coupons
         ]
+    }
+
+
+@router.post("/charge", response_model=ChargeResponse)
+def charge_points(
+    request: ChargeRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """ガチャポイントをチャージ（購入）する"""
+    
+    amount = request.amount
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="チャージ額は正の数である必要があります")
+
+    # ポイント加算
+    current_user.gacha_points = (current_user.gacha_points or 0) + amount
+    db.commit()
+    
+    return {
+        "success": True,
+        "added_points": amount,
+        "current_points": current_user.gacha_points,
+        "message": f"{amount}pt をチャージしました！"
     }
 
 
