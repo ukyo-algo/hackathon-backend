@@ -203,27 +203,33 @@ def reset_and_seed():
             print("   -> Disabling foreign key checks...")
             connection.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
 
-            # 2. 現在DBにある全テーブルをリフレクション(取得)して削除
-            #    これなら 'user_personas' のような亡霊テーブルも認識して消せる
-            print("   -> Reflecting and dropping all tables...")
-            metadata = MetaData()
-            metadata.reflect(bind=connection)
-            metadata.drop_all(bind=connection)
-
-            # 3. 新しい定義でテーブル作成
-            print("   -> Creating all tables...")
-            Base.metadata.create_all(bind=connection)
-
-            # 4. 外部キーチェックを戻す
-            print("   -> Re-enabling foreign key checks...")
+            # 2. 存在する全テーブルを取得してDROP
+            print("   -> Dropping all existing tables...")
+            result = connection.execute(text("SHOW TABLES"))
+            tables = [row[0] for row in result]
+            for table in tables:
+                print(f"      Dropping {table}...")
+                connection.execute(text(f"DROP TABLE IF EXISTS `{table}`"))
+            
+            # トランザクションをコミットしてからテーブル作成
             connection.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
-
             trans.commit()
-            print("✅ Database reset successful.")
+            print("   -> All tables dropped.")
 
         except Exception as e:
             trans.rollback()
-            print(f"❌ DB Reset Error: {e}")
+            print(f"❌ DB Drop Error: {e}")
+            return
+
+    # 新しい接続でテーブル作成
+    with engine.connect() as connection:
+        try:
+            print("   -> Creating all tables...")
+            Base.metadata.create_all(bind=engine)
+            print("✅ Database reset successful.")
+
+        except Exception as e:
+            print(f"❌ DB Create Error: {e}")
             return
 
     # データ投入はSessionで行う

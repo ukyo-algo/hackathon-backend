@@ -60,20 +60,6 @@ FUNCTION_DECLARATIONS = [
             required=["page_name"],
         ),
     ),
-    types.FunctionDeclaration(
-        name="like_item",
-        description="商品にいいねをつける。ユーザーが「これ気に入った」「いいね」と言った時に使う。",
-        parameters=types.Schema(
-            type=types.Type.OBJECT,
-            properties={
-                "item_id": types.Schema(
-                    type=types.Type.STRING,
-                    description="いいねする商品のID",
-                ),
-            },
-            required=["item_id"],
-        ),
-    ),
     
     # エンタメ関連
     types.FunctionDeclaration(
@@ -284,32 +270,6 @@ class FunctionExecutor:
             "action": "navigate",
             "path": path,
         }
-    
-    def _exec_like_item(self, item_id: str) -> Dict[str, Any]:
-        """いいね追加"""
-        # ユーザーを取得
-        user = self.db.query(models.User).filter(
-            models.User.firebase_uid == self.user_id
-        ).first()
-        
-        if not user:
-            return {"action": "like_item", "error": "ユーザーが見つかりません"}
-        
-        # 既にいいね済みかチェック
-        existing = self.db.query(models.Like).filter(
-            models.Like.user_id == user.id,
-            models.Like.item_id == item_id,
-        ).first()
-        
-        if existing:
-            return {"action": "like_item", "status": "already_liked", "item_id": item_id}
-        
-        # いいね追加
-        like = models.Like(user_id=user.id, item_id=item_id)
-        self.db.add(like)
-        self.db.commit()
-        
-        return {"action": "like_item", "status": "liked", "item_id": item_id}
     
     # --- エンタメ関連 ---
     

@@ -79,6 +79,32 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 
 汎用的な説明は避け、具体的なキャラ名に言及してください。
 """
+    elif page_type in ("my_page", "mypage"):
+        # マイページ：出品・購入状況に関する一言
+        prompt = f"""
+{context_text}
+
+ユーザーがマイページを見ています。
+上記の情報（出品数、購入数、いいね数など）を踏まえて、
+取引状況や活動に関する一言を返してください。
+ガチャやキャラクターの話は避け、フリマの取引に集中してください。
+"""
+    elif page_type == "seller":
+        # 出品管理ページ
+        prompt = f"""
+{context_text}
+
+ユーザーが出品管理ページを見ています。
+出品中の商品や発送待ちについて、キャラクターとして応援やアドバイスをしてください。
+"""
+    elif page_type == "buyer":
+        # 購入管理ページ
+        prompt = f"""
+{context_text}
+
+ユーザーが購入管理ページを見ています。
+購入した商品の配送状況や受け取り確認について、キャラクターとして一言添えてください。
+"""
     else:
         # 通常のページ遷移
         prompt = f"""
@@ -86,7 +112,7 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 
 ユーザーがページ「{path}{q_info}」を開きました。
 上記の情報を踏まえて、キャラクターとしてユーザーに寄り添う一言を返してください。
-商品を見ているなら具体的な感想や意見を、それ以外なら次のアクションの提案をしてください。
+商品を見ているなら具体的な感想や意見を述べてください。
 """
 
     print(f"[llm/context] prompt length: {len(prompt)}")
