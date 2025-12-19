@@ -65,6 +65,7 @@ def chat_with_agent(
         current_user.firebase_uid,
         current_chat=enhanced_message,
         history=None,  # LLMService側で履歴を一元管理
+        user_message=chat_in.message,
     )
 
     return result

@@ -30,6 +30,7 @@ class LLMService(LLMBase):
         ] = None,  # 外部履歴は受け取るが使用しない（LLMServiceで一元管理）
         is_visible: bool = True,  # UI表示フラグ
         force_persona_id: int = None, # ペルソナIDを強制指定
+        user_message: str = None, # 実際に保存するユーザー発言（プロンプト装飾なし）
     ) -> dict:
         # ユーザーと現在セット中のキャラを取得し、system_instructionとpersona_infoを準備
         current_persona = None
@@ -259,8 +260,9 @@ class LLMService(LLMBase):
             # 生成後に今回の発話とAI応答をDB履歴へ追加
             # 生成後に今回の発話とAI応答をDB履歴へ追加
             # ユーザー発言は is_visible に従う (システムプロンプトの場合はFalse)
+            content_to_save = user_message if user_message is not None else current_chat
             self._save_message(
-                user_id=user_id, role="user", content=current_chat, mtype="chat", is_visible=is_visible
+                user_id=user_id, role="user", content=content_to_save, mtype="chat", is_visible=is_visible
             )
             # AI応答は常にTrue (ユーザーに見せるため)
             self._save_message(

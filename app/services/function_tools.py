@@ -201,10 +201,13 @@ class FunctionExecutor:
         
         # キーワード検索
         if query:
-            q = q.filter(
-                models.Item.name.ilike(f"%{query}%") |
-                models.Item.description.ilike(f"%{query}%")
-            )
+            keywords = query.replace("　", " ").split()
+            for kw in keywords:
+                if not kw: continue
+                q = q.filter(
+                    models.Item.name.ilike(f"%{kw}%") |
+                    models.Item.description.ilike(f"%{kw}%")
+                )
         
         # カテゴリ絞り込み
         if category:
