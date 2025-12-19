@@ -70,20 +70,30 @@ def calculate_coupon_params(
         }
     """
     # デフォルト値
+    # ペルソナIDがない場合はデフォルト（固定）
+    if not user.current_persona_id:
+        return {
+            "coupon_type": "shipping_discount",
+            "discount_percent": 5,
+            "expires_hours": 3,
+        }
+    
+    level = get_user_persona_level(db, user.id, user.current_persona_id)
+    
+    # デフォルト値（レベルに応じて有効時間が延びる）
+    # Lv1: 3時間 -> Lv10: 6時間
+    default_hours = 3 + int((6 - 3) * (level - 1) / 9)
+    
     result = {
         "coupon_type": "shipping_discount",
         "discount_percent": 5,
-        "expires_hours": 3,
+        "expires_hours": default_hours,
     }
-    
-    if not user.current_persona_id:
-        return result
     
     skill_def = SKILL_DEFINITIONS.get(user.current_persona_id)
     if not skill_def:
         return result
     
-    level = get_user_persona_level(db, user.id, user.current_persona_id)
     skill_type = skill_def.get("skill_type")
     
     if skill_type == "daily_shipping_coupon":
