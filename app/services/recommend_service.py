@@ -20,7 +20,7 @@ def japanese_tokenizer(text):
     return [token.surface for token in tokenizer.tokenize(text)]
 
 
-def get_recommendations(db: Session, item_id: str, limit: int = 3):
+def get_recommendations(db: Session, item_id: str, limit: int = 10):
     """
     指定された商品(item_id)に似ている商品をDBから探して返す
     """
@@ -39,8 +39,11 @@ def get_recommendations(db: Session, item_id: str, limit: int = 3):
     target_index = -1
 
     for index, item in enumerate(items):
-        # テキストを結合: "商品名 カテゴリ 説明文"
-        text_feature = f"{item.name} {item.category} {item.description or ''}"
+        # テキストを結合: 商品名を3回繰り返して重要度を上げる
+        # "商品名 商品名 商品名 カテゴリ 状態 説明文"
+        name_weight = f"{item.name} {item.name} {item.name}"
+        condition = item.condition or ""
+        text_feature = f"{name_weight} {item.category} {condition} {item.description or ''}"
         item_data.append(text_feature)
 
         if item.item_id == item_id:
