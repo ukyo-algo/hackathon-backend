@@ -147,7 +147,10 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
     elif page_type == "persona_selection":
         # ペルソナ選択ページ
         selected_name = page_context_raw.get("additional_info", {}).get("selected_persona_name", "") if page_context_raw.get("additional_info") else ""
+        viewing_persona = page_context_raw.get("viewing_persona")
+        
         if selected_name:
+            # パートナーとして選択された場合
             prompt = f"""
 {context_text}
 
@@ -155,7 +158,37 @@ def post_context(payload: Dict[str, Any], db: Session = Depends(get_db)):
 「{selected_name}」として自己紹介し、ユーザーと一緒に買い物を楽しむ意欲を伝えてください。
 キャラクターの個性を活かした挨拶をしてください。
 """
+        elif viewing_persona:
+            # キャラ詳細モーダルを開いている場合
+            vp_name = viewing_persona.get("name", "このキャラクター")
+            vp_rarity = viewing_persona.get("rarity", "")
+            vp_is_owned = viewing_persona.get("is_owned", False)
+            vp_is_current = viewing_persona.get("is_current", False)
+            vp_level = viewing_persona.get("level", 1)
+            
+            if vp_is_current:
+                prompt = f"""
+{context_text}
+
+ユーザーが現在のパートナー「{vp_name}」の詳細を見ています（Lv.{vp_level}）。
+「{vp_name}」として、レベルアップや一緒に過ごす楽しさについてコメントしてください。
+"""
+            elif vp_is_owned:
+                prompt = f"""
+{context_text}
+
+ユーザーが所持キャラクター「{vp_name}」の詳細を見ています（Lv.{vp_level}、レアリティ: {vp_rarity}）。
+「{vp_name}」について、パートナーにするとどんな買い物体験ができるかなど、紹介してください。
+"""
+            else:
+                prompt = f"""
+{context_text}
+
+ユーザーが未所持のキャラクター「{vp_name}」（レアリティ: {vp_rarity}）の詳細を見ています。
+このキャラクターがガチャで手に入ることや、その魅力について触れてください。
+"""
         else:
+            # ペルソナ選択ページを見ているだけ
             prompt = f"""
 {context_text}
 
