@@ -90,6 +90,7 @@ def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         icon_url=user.icon_url,
         current_persona_id=1 if default_persona else None,  # 最初から装備
+        gacha_points=2000,  # 初期ポイント: 2000pt
     )
 
     # ★重要: 「所持リスト」にも追加

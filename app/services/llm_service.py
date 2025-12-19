@@ -277,10 +277,7 @@ class LLMService(LLMBase):
         except APIError as e:
             print(f"LLM API Error: {e}")
             return {
-                "reply": (
-                    "通信が不安定なようです。どのカテゴリや価格帯を検討中か教えていただければ、"
-                    "今できる範囲で候補や比較観点を提案します。"
-                ),
+                "reply": "通信が不安定なようです．インターネット環境が整った場所でご利用ください",
                 "persona": persona_info,
             }
         except Exception as e:
