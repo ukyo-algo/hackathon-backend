@@ -79,6 +79,9 @@ def build_context_text(page_context: Optional[PageContext]) -> str:
         "persona_selection": "キャラクター選択ページ",
         "seller": "出品管理ページ",
         "buyer": "購入管理ページ",
+        "mission": "ミッションページ",
+        "my_page": "マイページ",
+        "buy_confirmation": "購入確認ページ",
     }
     page_name = page_type_names.get(page_context.page_type, page_context.page_type)
     lines.append(f"【現在のページ】{page_name}")

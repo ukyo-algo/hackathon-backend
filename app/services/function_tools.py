@@ -268,10 +268,12 @@ class FunctionExecutor:
             "buyer": "/buyer",
             "persona-selection": "/persona-selection",
             "items/create": "/items/create",
+            "mission": "/mission",
             "出品": "/items/create",
             "マイページ": "/mypage",
             "ホーム": "/",
             "ガチャ": "/gacha",
+            "ミッション": "/mission",
         }
         
         path = page_map.get(page_name, page_map.get(page_name.lower(), None))

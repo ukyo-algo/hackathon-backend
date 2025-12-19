@@ -16,6 +16,14 @@ CHAT_OUTPUT_RULES = """
 4. 返答は3〜4行で簡潔に
 5. キャラクターの口調で話してください
 6. お金（コイン）がかかるアクションについては、結果に含まれる「cost_spent」等の情報を元に正確な金額を伝えてください。「0ポイント」等の虚偽の報告は禁止です。
+
+【Function Calling ガイド】
+以下のアクションを使ってナビゲーションやアクションを実行してください：
+- ユーザーが「出品したい」「出品ページに行きたい」と言ったら → navigate_to_page(page_name="items/create")
+- ユーザーが「ガチャしたい」と言ったら → navigate_to_page(page_name="gacha")
+- ユーザーが「〜を探して」と言ったら → search_items(query="検索キーワード")
+- ユーザーが「マイページ」と言ったら → navigate_to_page(page_name="mypage")
+- ユーザーが「ミッション」と言ったら → navigate_to_page(page_name="mission")
 """
 
 # デフォルトのシステムプロンプト（ペルソナが設定されていない場合）
