@@ -23,6 +23,19 @@ class PersonaBase(BaseModel):
         from_attributes = True
 
 
+class SellerInfo(BaseModel):
+    """
+    商品出品者として返すシンプルなスキーマ
+    """
+    id: Optional[int] = None  # データベースのユーザーID (DM用)
+    firebase_uid: Optional[str] = None
+    username: Optional[str] = None
+    icon_url: Optional[str] = None
+    rating: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserBase(BaseModel):
     """
     APIでユーザー情報を返すときの基本スキーマ
@@ -33,7 +46,7 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     icon_url: str | None = None
-    current_persona_id: int
+    current_persona_id: Optional[int] = None  # Optionalに変更
     current_persona: Optional["PersonaBase"] = None
     # サブペルソナ（月額パス加入者のみ）
     sub_persona_id: Optional[int] = None

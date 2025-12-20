@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, field_validator
-from .user import UserBase  # UserBaseをインポート
+from .user import SellerInfo  # SellerInfoをインポート
 from typing import List
 from .comment import Comment
 
@@ -32,7 +32,7 @@ class Item(ItemBase):
     APIレスポンス用のスキーマ（出品者情報、コメントを含む）
     """
 
-    seller: UserBase
+    seller: SellerInfo
     # 追加: この商品についたコメントのリスト
     comments: List[Comment] = []
     # 追加: いいねの数（簡易実装）
