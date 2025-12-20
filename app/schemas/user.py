@@ -64,14 +64,18 @@ class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# UserBaseを継承し、ユーザー作成時（POSTリクエスト時）に使うスキーマ
-class UserCreate(UserBase):
+# UserBaseを継承せず、ユーザー作成時に必要なフィールドのみ定義
+class UserCreate(BaseModel):
     """
     APIがユーザー作成時にリクエストボディとして受け取るスキーマ
     """
-
-    # 作成時は current_persona_id は必須ではない（バックエンドで設定する）
+    firebase_uid: str
+    username: str
+    email: EmailStr
+    icon_url: Optional[str] = None
     current_persona_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- リクエストスキーマ ---
