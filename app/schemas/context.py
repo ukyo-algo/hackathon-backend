@@ -30,7 +30,7 @@ class ItemContext(BaseModel):
 
 class PageContext(BaseModel):
     """ページコンテキスト"""
-    page_type: str  # "homepage" | "item_detail" | "search" | "mypage" | "gacha" | "gacha_result" | etc.
+    page_type: str  # "homepage" | "item_detail" | "search" | "mypage" | "gacha" | "gacha_result" | "direct_message" | etc.
     current_item: Optional[ItemContext] = None
     visible_items: Optional[List[ItemContext]] = None
     search_query: Optional[str] = None
@@ -44,6 +44,8 @@ class PageContext(BaseModel):
     result_is_new: Optional[bool] = None
     result_stack_count: Optional[int] = None
     fragments_earned: Optional[int] = None
+    # DM用フィールド
+    dm_context: Optional[Dict[str, Any]] = None
 
 
 class ContextRequest(BaseModel):
@@ -86,6 +88,7 @@ def build_context_text(page_context: Optional[PageContext]) -> str:
         "mission": "ミッションページ",
         "buy_confirmation": "購入確認ページ",
         "levelup": "レベルアップ",
+        "direct_message": "ダイレクトメッセージ",
     }
     page_name = page_type_names.get(page_context.page_type, page_context.page_type)
     lines.append(f"【現在のページ】{page_name}")
@@ -104,6 +107,43 @@ def build_context_text(page_context: Optional[PageContext]) -> str:
                 lines.append(f"  重複: {page_context.result_stack_count}体目")
             if page_context.fragments_earned:
                 lines.append(f"  メモリーフラグメント獲得: +{page_context.fragments_earned}")
+    
+    # ダイレクトメッセージコンテキスト
+    if page_context.page_type == "direct_message" and page_context.dm_context:
+        dm = page_context.dm_context
+        lines.append("")
+        if dm.get("conversation_with"):
+            lines.append(f"【会話相手】{dm['conversation_with']}")
+        if dm.get("item_name"):
+            lines.append(f"【関連商品】{dm['item_name']}")
+        
+        # 関係情報
+        if dm.get("relationship"):
+            rel = dm["relationship"]
+            rel_parts = []
+            if rel.get("purchases", {}).get("from_other"):
+                rel_parts.append(f"相手から{len(rel['purchases']['from_other'])}件購入済み")
+            if rel.get("purchases", {}).get("to_other"):
+                rel_parts.append(f"相手に{len(rel['purchases']['to_other'])}件販売済み")
+            if rel.get("likes", {}).get("i_liked_their_items"):
+                rel_parts.append(f"相手の商品に{rel['likes']['i_liked_their_items']}いいね")
+            if rel.get("likes", {}).get("they_liked_my_items"):
+                rel_parts.append(f"相手から{rel['likes']['they_liked_my_items']}いいね")
+            if rel_parts:
+                lines.append(f"【二人の関係】{', '.join(rel_parts)}")
+        
+        # 直近のメッセージ
+        if dm.get("recent_messages"):
+            lines.append("【直近の会話】")
+            for msg in dm["recent_messages"][-5:]:  # 最新5件
+                sender = msg.get("sender", "?")
+                content = msg.get("content", "")[:50]
+                lines.append(f"  {sender}: {content}")
+        
+        # 指示（重要：AIにこれに従うよう明示）
+        if dm.get("instruction"):
+            lines.append("")
+            lines.append(f"【重要な指示】{dm['instruction']}")
     
     # 検索クエリ
     if page_context.search_query:
