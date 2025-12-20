@@ -29,15 +29,23 @@ def get_current_user(
     """
     リクエストヘッダーのUIDを元に、現在のユーザーを特定する。
     """
+    from sqlalchemy.orm import joinedload
+    
     if x_firebase_uid is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="認証情報(X-Firebase-Uid)が不足しています",
         )
 
-    # DBからユーザーを検索
+    # DBからユーザーを検索（ペルソナ情報もeager loadする）
     user = (
-        db.query(models.User).filter(models.User.firebase_uid == x_firebase_uid).first()
+        db.query(models.User)
+        .options(
+            joinedload(models.User.current_persona),
+            joinedload(models.User.sub_persona),
+        )
+        .filter(models.User.firebase_uid == x_firebase_uid)
+        .first()
     )
 
     if user is None:

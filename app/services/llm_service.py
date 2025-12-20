@@ -461,6 +461,38 @@ intro_messageは必ず{persona_name}のキャラクター固有の口調で書�
         except Exception as e:
             print(f"⚠️ reason generation failed: {e}")
             intro_message = "おすすめの商品です！"
+        
+        # コメントがない商品に対してフォールバック生成
+        items_without_reason = [it for it in items if it["item_id"] not in item_reasons]
+        if items_without_reason and user and user.current_persona:
+            print(f"[generate_recommendations] Generating fallback reasons for {len(items_without_reason)} items")
+            try:
+                for it in items_without_reason:
+                    fallback_prompt = f"""
+あなたは「{user.current_persona.name}」です。
+以下の商品について、あなたのキャラクター固有の口調で短いおすすめコメント（1〜2文）を書いてください。
+
+商品名: {it['name']}
+価格: ¥{it.get('price', '不明'):,}
+説明: {(it.get('description') or '')[:100]}
+
+コメントのみを出力してください（余計な説明は不要）。
+"""
+                    fallback_config = types.GenerateContentConfig(
+                        system_instruction=user.current_persona.system_prompt or "親切なアシスタントとして振る舞ってください。",
+                        temperature=0.7,
+                    )
+                    fallback_contents = [
+                        types.Content(role="user", parts=[types.Part(text=fallback_prompt)])
+                    ]
+                    fallback_resp = self.client.models.generate_content(
+                        model=self.model_name, contents=fallback_contents, config=fallback_config
+                    )
+                    if fallback_resp.text:
+                        item_reasons[it["item_id"]] = fallback_resp.text.strip()
+                        print(f"  ✓ Generated fallback for {it['name']}: {fallback_resp.text.strip()[:50]}...")
+            except Exception as e:
+                print(f"⚠️ Fallback reason generation failed: {e}")
 
         # 履歴に保存（log_interactionを使用）
         self.log_interaction(user_id, "recommend", {
