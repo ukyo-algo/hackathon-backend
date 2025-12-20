@@ -382,6 +382,130 @@ def get_unread_count(
     return {"unread_count": count}
 
 
+@router.get("/conversations/{conversation_id}/relationship")
+def get_relationship_info(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    DM相手との関係情報（取引・いいね・コメント）を取得
+    AI返信アシスト用のコンテキスト
+    """
+    # 会話の存在確認
+    conversation = db.query(models.Conversation).filter(
+        models.Conversation.id == conversation_id
+    ).first()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="会話が見つかりません")
+
+    if conversation.user1_id != current_user.id and conversation.user2_id != current_user.id:
+        raise HTTPException(status_code=403, detail="この会話にアクセスする権限がありません")
+
+    # 相手ユーザー
+    other_user_id = conversation.user2_id if conversation.user1_id == current_user.id else conversation.user1_id
+    other_user = db.query(models.User).filter(models.User.id == other_user_id).first()
+    
+    if not other_user:
+        return {"relationship": None}
+
+    # 1. 取引情報: 相手から購入した商品、相手に売った商品
+    # 相手の出品した商品を自分が購入
+    purchased_from_other = (
+        db.query(models.Transaction)
+        .join(models.Item, models.Transaction.item_id == models.Item.item_id)
+        .filter(
+            models.Transaction.buyer_id == current_user.firebase_uid,
+            models.Item.seller_id == other_user.firebase_uid,
+        )
+        .all()
+    )
+    
+    # 自分の出品した商品を相手が購入
+    sold_to_other = (
+        db.query(models.Transaction)
+        .join(models.Item, models.Transaction.item_id == models.Item.item_id)
+        .filter(
+            models.Transaction.buyer_id == other_user.firebase_uid,
+            models.Item.seller_id == current_user.firebase_uid,
+        )
+        .all()
+    )
+
+    # 2. いいね情報: 相手の商品への自分のいいね、自分の商品への相手のいいね
+    my_likes_on_other = (
+        db.query(models.Like)
+        .join(models.Item, models.Like.item_id == models.Item.item_id)
+        .filter(
+            models.Like.user_id == current_user.firebase_uid,
+            models.Item.seller_id == other_user.firebase_uid,
+        )
+        .count()
+    )
+    
+    other_likes_on_mine = (
+        db.query(models.Like)
+        .join(models.Item, models.Like.item_id == models.Item.item_id)
+        .filter(
+            models.Like.user_id == other_user.firebase_uid,
+            models.Item.seller_id == current_user.firebase_uid,
+        )
+        .count()
+    )
+
+    # 3. コメント情報: 相手の商品への自分のコメント、自分の商品への相手のコメント
+    my_comments_on_other = (
+        db.query(models.Comment)
+        .join(models.Item, models.Comment.item_id == models.Item.item_id)
+        .filter(
+            models.Comment.user_id == current_user.firebase_uid,
+            models.Item.seller_id == other_user.firebase_uid,
+        )
+        .all()
+    )
+    
+    other_comments_on_mine = (
+        db.query(models.Comment)
+        .join(models.Item, models.Comment.item_id == models.Item.item_id)
+        .filter(
+            models.Comment.user_id == other_user.firebase_uid,
+            models.Item.seller_id == current_user.firebase_uid,
+        )
+        .all()
+    )
+
+    return {
+        "relationship": {
+            "purchases": {
+                "from_other": [
+                    {"item_name": t.item.name if t.item else "不明", "price": t.price, "status": t.status}
+                    for t in purchased_from_other
+                ],
+                "to_other": [
+                    {"item_name": t.item.name if t.item else "不明", "price": t.price, "status": t.status}
+                    for t in sold_to_other
+                ],
+            },
+            "likes": {
+                "i_liked_their_items": my_likes_on_other,
+                "they_liked_my_items": other_likes_on_mine,
+            },
+            "comments": {
+                "i_commented_on_their_items": [
+                    {"item_name": c.item.name if c.item else "不明", "content": c.content[:50]}
+                    for c in my_comments_on_other[-5:]  # 直近5件
+                ],
+                "they_commented_on_my_items": [
+                    {"item_name": c.item.name if c.item else "不明", "content": c.content[:50]}
+                    for c in other_comments_on_mine[-5:]  # 直近5件
+                ],
+            },
+            "conversation_item": conversation.item.name if conversation.item else None,
+        }
+    }
+
+
 # --- WebSocket Endpoint ---
 
 @router.websocket("/ws/{user_id}")
