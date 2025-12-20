@@ -31,7 +31,8 @@ class SellerInfo(BaseModel):
     firebase_uid: Optional[str] = None
     username: Optional[str] = None
     icon_url: Optional[str] = None
-    rating: Optional[float] = None
+    average_rating: Optional[float] = 0.0
+    rating_count: Optional[int] = 0
 
     model_config = ConfigDict(from_attributes=True)
 

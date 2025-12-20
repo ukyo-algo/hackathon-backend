@@ -106,6 +106,8 @@ def ship_transaction(
 )
 def complete_transaction(
     transaction_id: str,
+    rating: int = None,  # 出品者への評価 (1-5)
+    comment: str = None,  # 評価コメント
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -121,6 +123,27 @@ def complete_transaction(
         raise HTTPException(status_code=403, detail="購入者のみ操作できます")
     if tx.status != "in_transit":
         raise HTTPException(status_code=400, detail="配送中ではありません")
+    
+    # 評価が指定されている場合、出品者の評価を更新
+    if rating is not None:
+        if rating < 1 or rating > 5:
+            raise HTTPException(status_code=400, detail="評価は1〜5の範囲で指定してください")
+        
+        tx.seller_rating = rating
+        tx.rating_comment = comment  # コメントも保存
+        
+        # 出品者の平均評価を更新
+        if tx.item and tx.item.seller:
+            seller = tx.item.seller
+            old_count = seller.rating_count or 0
+            old_avg = seller.average_rating or 0.0
+            
+            # 新しい平均を計算
+            new_count = old_count + 1
+            new_avg = ((old_avg * old_count) + rating) / new_count
+            
+            seller.rating_count = new_count
+            seller.average_rating = new_avg
 
     tx.status = "completed"
     tx.completed_at = func.now()
@@ -131,11 +154,12 @@ def complete_transaction(
 
     # 出品者に取引完了通知を送信
     if tx.item and tx.item.seller:
+        rating_text = f"（★{rating}の評価をいただきました）" if rating else ""
         notification = models.Notification(
             user_id=tx.item.seller.id,
             type="transaction_complete",
             title="取引が完了しました！",
-            message=f"「{tx.item.name}」の取引が完了しました。ありがとうございました！",
+            message=f"「{tx.item.name}」の取引が完了しました。{rating_text}ありがとうございました！",
             link="/seller",
         )
         db.add(notification)

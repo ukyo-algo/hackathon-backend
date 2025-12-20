@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy import (
     Boolean,
     Column,
+    Float,
     Integer,
     String,
     ForeignKey,
@@ -74,6 +75,10 @@ class User(Base):
     # サブスクリプション: free/monthly
     subscription_tier = Column(String(50), default="free")
     subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # 出品者評価: 購入者からの評価
+    average_rating = Column(Float, default=0.0)  # 平均評価 (1-5)
+    rating_count = Column(Integer, default=0)  # 評価数
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -157,6 +162,10 @@ class Transaction(Base):
     status = Column(String(32), default="pending_shipment")
     shipped_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # 出品者への評価 (1-5, nullなら未評価)
+    seller_rating = Column(Integer, nullable=True)
+    rating_comment = Column(String(500), nullable=True)  # 評価コメント
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
