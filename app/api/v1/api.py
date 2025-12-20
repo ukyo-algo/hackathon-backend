@@ -11,6 +11,7 @@ from .endpoints import (
     rewards,
     mission,
     notification,
+    messages,
 )  # LLM/Reco追加
 
 api_router = APIRouter()
@@ -42,4 +43,9 @@ api_router.include_router(
 api_router.include_router(
     notification.router,
     tags=["Notifications"],
+)
+api_router.include_router(
+    messages.router,
+    prefix="/messages",
+    tags=["Messages"],
 )

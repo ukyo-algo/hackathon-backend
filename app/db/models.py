@@ -366,3 +366,44 @@ class Notification(Base):
 
 # User へ逆参照を追加
 User.notifications = relationship("Notification", back_populates="user")
+
+
+# --- 13. Conversation Model (ダイレクトメッセージの会話) ---
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # 会話の参加者（2人）
+    user1_id = Column(Integer, ForeignKey("users.id"), index=True)
+    user2_id = Column(Integer, ForeignKey("users.id"), index=True)
+    
+    # 関連商品（オプション：商品に関する問い合わせの場合）
+    item_id = Column(String(255), ForeignKey("items.item_id"), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # リレーション
+    user1 = relationship("User", foreign_keys=[user1_id])
+    user2 = relationship("User", foreign_keys=[user2_id])
+    item = relationship("Item")
+    messages = relationship("DirectMessage", back_populates="conversation", order_by="DirectMessage.created_at")
+
+
+# --- 14. DirectMessage Model (ダイレクトメッセージ) ---
+class DirectMessage(Base):
+    __tablename__ = "direct_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), index=True)
+    
+    content = Column(Text)
+    is_read = Column(Boolean, default=False, index=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # リレーション
+    conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User")
