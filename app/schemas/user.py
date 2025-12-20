@@ -28,6 +28,7 @@ class UserBase(BaseModel):
     APIでユーザー情報を返すときの基本スキーマ
     """
 
+    id: int  # データベースのユーザーID
     firebase_uid: str
     username: str
     email: EmailStr
